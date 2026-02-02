@@ -1,5 +1,5 @@
 import { WeighingReading, WeighingSource, ConnectionStatus } from './types';
-import { weighingSource } from './MockWeighingSource';
+import { weighingSource as mockSource } from './MockWeighingSource';
 
 export class WeighingManager {
     private lastReadings: number[] = [];
@@ -17,12 +17,10 @@ export class WeighingManager {
     private processReading(data: WeighingReading) {
         this.currentReading = data;
 
-        // 데이터가 들어온다는 것은 연결된 상태임
-        if (this.connectionStatus !== 'CONNECTED') {
+        if (this.connectionStatus !== 'CONNECTED' && this.connectionStatus !== 'CONNECTING') {
             this.connectionStatus = 'CONNECTED';
         }
 
-        // 안정성 판단 로직
         if (data.status === 'STABLE') {
             this.lastReadings.push(data.weight);
             if (this.lastReadings.length > this.STABLE_THRESHOLD) {
@@ -32,7 +30,6 @@ export class WeighingManager {
             this.lastReadings = [];
         }
 
-        // 리스너들에게 알림
         this.listeners.forEach(fn => fn(data));
     }
 
@@ -47,7 +44,6 @@ export class WeighingManager {
         return this.currentReading;
     }
 
-    // 실제 하드웨어 연결
     async connect() {
         if (this.connectionStatus === 'CONNECTED' || this.connectionStatus === 'CONNECTING') {
             return;
@@ -55,7 +51,6 @@ export class WeighingManager {
 
         try {
             this.connectionStatus = 'CONNECTING';
-            // 리스너들에게 상태 변경 알림 (가상 데이터 전송)
             this.notifyStatusChange();
 
             await this.source.connect();
@@ -94,7 +89,6 @@ export class WeighingManager {
 
     private notifyStatusChange() {
         if (!this.currentReading) {
-            // 초기 더미 데이터로 상태만 전송
             this.listeners.forEach(fn => fn({
                 status: this.connectionStatus === 'ERROR' ? 'ERROR' : 'UNSTABLE',
                 weight: 0,
@@ -105,7 +99,6 @@ export class WeighingManager {
         }
     }
 
-    // 무게 설정 (Mock 전용)
     setMockWeight(weight: number, status?: WeighingReading['status']) {
         if (this.source.setMockWeight) {
             this.source.setMockWeight(weight, status);
@@ -113,6 +106,22 @@ export class WeighingManager {
     }
 }
 
-// 글로벌 매니저 인스턴스
-export const weighingManager = new WeighingManager(weighingSource);
-// 더 이상 자동으로 초기화하지 않음. 사용자가 버튼을 눌러야 연결됨.
+// 환경변수 COM_PORT가 있으면 실기 연동, 없으면 Mock 사용
+const COM_PORT = process.env.COM_PORT || '';
+
+let activeSource = mockSource;
+
+if (COM_PORT) {
+    try {
+        // 빌드 타임에 native binary 에러를 방지하기 위해 조건부 로드
+        const { SerialWeighingSource } = require('./SerialWeighingSource');
+        activeSource = new SerialWeighingSource(COM_PORT);
+        console.log(`[Weighter] 실제 계량기 모드 가동 (Port: ${COM_PORT})`);
+    } catch (e) {
+        console.error(`[Weighter] SerialPort 로드 실패 (환경 확인 필요):`, e);
+    }
+} else {
+    console.log(`[Weighter] 시뮬레이션 모드 가동 (COM_PORT 설정 없음)`);
+}
+
+export const weighingManager = new WeighingManager(activeSource);

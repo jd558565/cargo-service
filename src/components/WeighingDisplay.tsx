@@ -280,6 +280,21 @@ export default function WeighingDisplay() {
                     )}
                 </div>
             </div>
+            {/* Overload Alert (OL) */}
+            {reading?.status === 'OVERLOAD' && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
+                    <div className="glass-card p-12 border-2 border-error animate-in zoom-in duration-300 flex flex-col items-center gap-6 shadow-[0_0_50px_rgba(239,68,68,0.3)]">
+                        <div className="w-20 h-20 rounded-full bg-error/20 flex items-center justify-center animate-pulse">
+                            <span className="text-4xl">⚠️</span>
+                        </div>
+                        <h2 className="text-4xl font-black text-error tracking-tighter">차량 과적 감지</h2>
+                        <p className="text-xl font-bold text-white/70">차량을 저울에서 내려주세요</p>
+                        <div className="mt-4 px-8 py-3 bg-error text-black font-black rounded-full animate-bounce">
+                            경고: 측정 불가
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
