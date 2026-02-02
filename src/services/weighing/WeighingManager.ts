@@ -16,6 +16,7 @@ export class WeighingManager {
 
     private processReading(data: WeighingReading) {
         this.currentReading = data;
+        console.log(`[MANAGER PROCESS] Weight: ${data.weight}, Status: ${data.status}`); // 3단계: 매니저 수신 로그
 
         if (this.connectionStatus !== 'CONNECTED' && this.connectionStatus !== 'CONNECTING') {
             this.connectionStatus = 'CONNECTED';
@@ -30,7 +31,10 @@ export class WeighingManager {
             this.lastReadings = [];
         }
 
-        this.listeners.forEach(fn => fn(data));
+        this.listeners.forEach(fn => {
+            console.log(`[MANAGER NOTIFY] Triggering listener for ${data.weight}kg`);
+            fn(data);
+        });
     }
 
     subscribe(callback: (reading: WeighingReading) => void) {

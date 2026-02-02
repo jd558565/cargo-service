@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
 
             const unsubscribe = weighingManager.subscribe((reading) => {
                 const data = `data: ${JSON.stringify(reading)}\n\n`;
+                console.log(`[SSE PUSH] Sending weight: ${reading.weight}kg to client`); // 3단계: SSE 전송 로그
                 try {
                     controller.enqueue(encoder.encode(data));
                 } catch (e) {

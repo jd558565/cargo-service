@@ -61,6 +61,7 @@ export class SerialWeighingSource implements WeighingSource {
         if (!this.parser) return;
 
         this.parser.on('data', (raw: string) => {
+            console.log(`[SERIAL RAW] ${raw}`); // 1단계: 시리얼 수신 원문 로그
             const parsed = AND4321Parser.parse(raw);
             if (parsed && this.readingCallback) {
                 this.readingCallback(parsed as WeighingReading);

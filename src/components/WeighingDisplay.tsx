@@ -16,6 +16,7 @@ export default function WeighingDisplay() {
     const [isProcessing, setIsProcessing] = useState(false);
     const [records, setRecords] = useState<{ id: number; weight: number; time: Date }[]>([]);
     const [retryCount, setRetryCount] = useState(0);
+    const [hasReceivedData, setHasReceivedData] = useState(false); // 실제 데이터 수신 여부
 
     // 기록 불러오기 (초기 로드)
     useEffect(() => {
@@ -58,24 +59,36 @@ export default function WeighingDisplay() {
             eventSource = new EventSource('/api/weighing/stream');
 
             eventSource.onopen = () => {
-                console.log('SSE 연결 성공');
+                console.log('[UI SSE] SSE Channel Opened. Waiting for data...');
                 setRetryCount(0);
             };
 
             eventSource.onmessage = (event) => {
                 const data = JSON.parse(event.data);
+                console.log('[UI RECEIVE] Payload:', data); // 4단계: 프론트 수신 로그
 
                 if (data.raw?.startsWith('STATUS_CHANGE')) {
                     const newStatus = data.raw.split(':')[1];
-                    setConnectionStatus(newStatus);
+                    // 주의: 여기서 CONNECTED로 바로 바꾸지 않고 데이터 유무에 따라 판단
+                    if (newStatus === 'DISCONNECTED' || newStatus === 'ERROR') {
+                        setConnectionStatus(newStatus);
+                        setHasReceivedData(false);
+                    }
                     return;
                 }
 
                 if (data.raw === 'DEVICE_DISCONNECTED') {
                     setConnectionStatus('DISCONNECTED');
                     setReading(null);
+                    setHasReceivedData(false);
                 } else {
+                    // 유효한 계량 데이터 수신 시점
                     setReading(data);
+                    if (!hasReceivedData) {
+                        console.log('[UI STATUS] First valid data received. Marking as RECEIVING.');
+                        setHasReceivedData(true);
+                    }
+
                     if (connectionStatus !== 'CONNECTED' && connectionStatus !== 'CONNECTING') {
                         setConnectionStatus('CONNECTED');
                     }
@@ -83,14 +96,15 @@ export default function WeighingDisplay() {
             };
 
             eventSource.onerror = (err) => {
-                console.error('SSE 에러 발생 (Vercel Timeout 등):', err);
+                console.error('[UI SSE] SSE Error (Possible Timeout/504):', err);
                 eventSource?.close();
+                setHasReceivedData(false);
 
                 // 에러 발생 시(504 등) 자동으로 짧은 지연 후 재연결 시도
                 if (connectionStatus === 'CONNECTED' || connectionStatus === 'CONNECTING') {
                     setRetryCount(prev => prev + 1);
                     retryTimer = setTimeout(() => {
-                        console.log('연결 복구 시도 중...');
+                        console.log('[UI SSE] Attempting Auto-reconnect...');
                         connectStream();
                     }, 1000); // 1초 후 재연결
                 }
@@ -103,7 +117,7 @@ export default function WeighingDisplay() {
             if (eventSource) eventSource.close();
             if (retryTimer) clearTimeout(retryTimer);
         };
-    }, [connectionStatus]);
+    }, [connectionStatus, hasReceivedData]);
 
     const handleConnection = async () => {
         if (isProcessing) return;
@@ -113,6 +127,7 @@ export default function WeighingDisplay() {
 
         if (action === 'connect') {
             setConnectionStatus('CONNECTING');
+            setHasReceivedData(false);
         }
 
         try {
@@ -153,9 +168,14 @@ export default function WeighingDisplay() {
 
     // UI 텍스트 및 색상 매핑
     const getStatusInfo = () => {
+        // SSE는 열렸으나 데이터가 아직 안 들어온 경우 '데이터 대기 중' 표시
+        if (connectionStatus === 'CONNECTED' && !hasReceivedData) {
+            return { text: '서버 연결됨 (데이터 대기 중)', color: '#60a5fa', glow: true }; // Blue
+        }
+
         switch (connectionStatus) {
             case 'CONNECTED':
-                return { text: '연결됨', color: 'var(--primary)', glow: true };
+                return { text: '실시간 계량 중', color: 'var(--primary)', glow: true };
             case 'CONNECTING':
                 return { text: retryCount > 0 ? `재연결 중 (${retryCount})...` : '연결 중...', color: '#fbbf24', glow: true };
             case 'DISCONNECTED':
@@ -201,7 +221,7 @@ export default function WeighingDisplay() {
                         }}
                     />
                     <span className="text-[12px] font-bold tracking-wider" style={{ color: statusInfo.color }}>
-                        {connectionStatus === 'CONNECTED' ? `[${readingStatus.text}] 연결됨` : statusInfo.text}
+                        {hasReceivedData ? `[${readingStatus.text}] 계량 실시간 수신 중` : statusInfo.text}
                     </span>
                 </div>
 
@@ -210,7 +230,7 @@ export default function WeighingDisplay() {
                         현재 중량 (Weighter)
                     </h2>
                     <div className="flex items-baseline gap-2">
-                        <span className={`text-8xl font-black tracking-tighter ${connectionStatus === 'CONNECTED' ? 'gradient-text' : 'opacity-20 text-white'}`}>
+                        <span className={`text-8xl font-black tracking-tighter ${hasReceivedData ? 'gradient-text' : 'opacity-20 text-white'}`}>
                             {displayWeight}
                         </span>
                         <span className="text-xl font-bold opacity-30">kg</span>

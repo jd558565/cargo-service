@@ -39,12 +39,15 @@ export class AND4321Parser {
         // 사용자 정책: 정수만 허용, 음수 0 처리
         const finalWeight = Math.floor(Math.max(0, weightValue * sign));
 
-        return {
+        const result = {
             status,
             weight: finalWeight,
             unit,
             receivedAt: new Date(),
             raw: cleanRaw
         };
+
+        console.log(`[PARSER RESULT] Status: ${status}, Weight: ${finalWeight}, Unit: ${unit}`); // 2단계: 파싱 결과 로그
+        return result;
     }
 }
