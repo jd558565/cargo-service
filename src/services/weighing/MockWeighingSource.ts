@@ -71,6 +71,7 @@ export class MockWeighingSource implements WeighingSource {
                     status: this.currentStatus,
                     weight: finalWeight,
                     unit: 'kg',
+                    source: 'MOCK',
                     receivedAt: new Date(),
                     raw: `MOCK_DATA:${this.currentStatus}:${finalWeight}`
                 });

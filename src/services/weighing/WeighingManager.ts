@@ -97,6 +97,7 @@ export class WeighingManager {
                 status: this.connectionStatus === 'ERROR' ? 'ERROR' : 'UNSTABLE',
                 weight: 0,
                 unit: 'kg',
+                source: COM_PORT ? 'SERIAL' : 'MOCK',
                 receivedAt: new Date(),
                 raw: `STATUS_CHANGE:${this.connectionStatus}`
             }));
@@ -117,15 +118,26 @@ let activeSource = mockSource;
 
 if (COM_PORT) {
     try {
-        // 빌드 타임에 native binary 에러를 방지하기 위해 조건부 로드
         const { SerialWeighingSource } = require('./SerialWeighingSource');
         activeSource = new SerialWeighingSource(COM_PORT);
-        console.log(`[Weighter] 실제 계량기 모드 가동 (Port: ${COM_PORT})`);
+        console.log(`[Weighter] ★ 실제 하드웨어 모드 (Port: ${COM_PORT})`);
     } catch (e) {
-        console.error(`[Weighter] SerialPort 로드 실패 (환경 확인 필요):`, e);
+        console.error(`[Weighter] SerialPort 로드 실패:`, e);
     }
 } else {
-    console.log(`[Weighter] 시뮬레이션 모드 가동 (COM_PORT 설정 없음)`);
+    console.log(`[Weighter] ⚠ 시뮬레이션 모드 가동 중 (COM_PORT 설정 없음)`);
+
+    // 사용 가능한 포트 리스트를 출력하여 사용자에게 도움을 줌
+    try {
+        const { SerialPort } = require('serialport');
+        SerialPort.list().then((ports: any[]) => {
+            if (ports.length > 0) {
+                console.log(`[Weighter] 현재 사용 가능한 포트 리스트:`);
+                ports.forEach(p => console.log(`  - ${p.path} (${p.manufacturer || '알 수 없는 제조사'})`));
+                console.log(`[Weighter] 위 포트 중 하나를 사용하려면 .env 파일에 COM_PORT=포트명 을 입력하세요.`);
+            }
+        });
+    } catch (e) { }
 }
 
 export const weighingManager = new WeighingManager(activeSource);

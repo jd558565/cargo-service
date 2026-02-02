@@ -6,8 +6,9 @@ interface WeighingReading {
     status: 'STABLE' | 'UNSTABLE' | 'OVERLOAD' | 'ERROR';
     weight: number;
     unit: string;
+    source: 'MOCK' | 'SERIAL';
     raw?: string;
-    receivedAt: string | Date; // Date 객체 또는 ISO 문자열
+    receivedAt: string | Date;
 }
 
 export default function WeighingDisplay() {
@@ -17,6 +18,7 @@ export default function WeighingDisplay() {
     const [records, setRecords] = useState<{ id: number; weight: number; time: Date }[]>([]);
     const [retryCount, setRetryCount] = useState(0);
     const [hasReceivedData, setHasReceivedData] = useState(false); // 실제 데이터 수신 여부
+    const [availablePorts, setAvailablePorts] = useState<any[]>([]); // 기기에서 감지된 포트
 
     // 기록 불러오기 (초기 로드)
     useEffect(() => {
@@ -36,12 +38,16 @@ export default function WeighingDisplay() {
         localStorage.setItem('weighing_records', JSON.stringify(records));
     }, [records]);
 
-    // 상태 폴링 (초기 로드 시)
+    // 상태 및 포트 리스트 초기 로드
     useEffect(() => {
         fetch('/api/weighing/connection')
             .then(res => res.json())
+            .then(data => setConnectionStatus(data.status));
+
+        fetch('/api/weighing/ports')
+            .then(res => res.json())
             .then(data => {
-                setConnectionStatus(data.status);
+                if (data.success) setAvailablePorts(data.ports);
             });
     }, []);
 
@@ -65,11 +71,10 @@ export default function WeighingDisplay() {
 
             eventSource.onmessage = (event) => {
                 const data = JSON.parse(event.data);
-                console.log('[UI RECEIVE] Payload:', data); // 4단계: 프론트 수신 로그
+                console.log(`[UI RECEIVE] Source: ${data.source}, Weight: ${data.weight}`);
 
                 if (data.raw?.startsWith('STATUS_CHANGE')) {
                     const newStatus = data.raw.split(':')[1];
-                    // 주의: 여기서 CONNECTED로 바로 바꾸지 않고 데이터 유무에 따라 판단
                     if (newStatus === 'DISCONNECTED' || newStatus === 'ERROR') {
                         setConnectionStatus(newStatus);
                         setHasReceivedData(false);
@@ -82,10 +87,10 @@ export default function WeighingDisplay() {
                     setReading(null);
                     setHasReceivedData(false);
                 } else {
-                    // 유효한 계량 데이터 수신 시점
                     setReading(data);
-                    if (!hasReceivedData) {
-                        console.log('[UI STATUS] First valid data received. Marking as RECEIVING.');
+                    // 실제 하드웨어 데이터 수신 시에만 진짜 '수신 성공'으로 간주
+                    if (data.source === 'SERIAL' && !hasReceivedData) {
+                        console.log('[UI STATUS] Real Serial Hardware data detected.');
                         setHasReceivedData(true);
                     }
 
@@ -168,14 +173,24 @@ export default function WeighingDisplay() {
 
     // UI 텍스트 및 색상 매핑
     const getStatusInfo = () => {
-        // SSE는 열렸으나 데이터가 아직 안 들어온 경우 '데이터 대기 중' 표시
+        // 하드웨어 계량 중
+        if (reading?.source === 'SERIAL') {
+            return { text: '실시간 하드웨어 계량 중', color: 'var(--primary)', glow: true };
+        }
+
+        // 시뮬레이션 계량 중
+        if (reading?.source === 'MOCK') {
+            return { text: '시뮬레이션 모드 (MOCK)', color: '#fb923c', glow: true };
+        }
+
+        // SSE는 열렸으나 데이터가 아직 안 들어온 경우
         if (connectionStatus === 'CONNECTED' && !hasReceivedData) {
-            return { text: '서버 연결됨 (데이터 대기 중)', color: '#60a5fa', glow: true }; // Blue
+            return { text: '서버 연결됨 (데이터 대기 중)', color: '#60a5fa', glow: true };
         }
 
         switch (connectionStatus) {
             case 'CONNECTED':
-                return { text: '실시간 계량 중', color: 'var(--primary)', glow: true };
+                return { text: '연결됨', color: 'var(--primary)', glow: true };
             case 'CONNECTING':
                 return { text: retryCount > 0 ? `재연결 중 (${retryCount})...` : '연결 중...', color: '#fbbf24', glow: true };
             case 'DISCONNECTED':
@@ -221,16 +236,36 @@ export default function WeighingDisplay() {
                         }}
                     />
                     <span className="text-[12px] font-bold tracking-wider" style={{ color: statusInfo.color }}>
-                        {hasReceivedData ? `[${readingStatus.text}] 계량 실시간 수신 중` : statusInfo.text}
+                        {reading?.source === 'SERIAL' ? `[${readingStatus.text}] 실시간 하드웨어 수신 중` : statusInfo.text}
                     </span>
                 </div>
 
                 <div className="flex flex-col items-center mt-4">
                     <h2 className="text-[11px] font-bold text-dim uppercase tracking-[0.3em] mb-4 opacity-50">
-                        현재 중량 (Weighter)
+                        현재 중량 ({reading?.source === 'SERIAL' ? 'HARDWARE' : 'SIMULATION'})
                     </h2>
+
+                    {reading?.source === 'MOCK' && availablePorts.length > 0 && (
+                        <div className="mb-6 flex flex-col items-center gap-2 animate-in fade-in duration-700">
+                            <span className="text-[10px] text-amber-500/70 font-bold">감지된 COM 포트Found:</span>
+                            <div className="flex gap-2">
+                                {availablePorts.map(p => (
+                                    <code key={p.path} className="px-2 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded text-[10px] font-bold">
+                                        {p.path}
+                                    </code>
+                                ))}
+                            </div>
+                            <p className="text-[9px] text-white/30 text-center mt-1">
+                                .env 파일에 COM_PORT={availablePorts[0].path} 설정이 필요합니다.
+                            </p>
+                        </div>
+                    )}
+
                     <div className="flex items-baseline gap-2">
-                        <span className={`text-8xl font-black tracking-tighter ${hasReceivedData ? 'gradient-text' : 'opacity-20 text-white'}`}>
+                        <span className={`text-8xl font-black tracking-tighter 
+                            ${reading?.source === 'SERIAL' ? 'gradient-text' :
+                                reading?.source === 'MOCK' ? 'text-amber-500' :
+                                    'opacity-20 text-white'}`}>
                             {displayWeight}
                         </span>
                         <span className="text-xl font-bold opacity-30">kg</span>

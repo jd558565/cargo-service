@@ -4,6 +4,7 @@ export interface WeighingReading {
     status: 'STABLE' | 'UNSTABLE' | 'OVERLOAD' | 'ERROR';
     weight: number; // kg, Integer only (0 or natural number)
     unit: 'kg';
+    source: 'MOCK' | 'SERIAL';
     raw?: string;   // 원문 데이터
     receivedAt: Date;
 }

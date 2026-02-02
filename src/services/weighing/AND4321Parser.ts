@@ -39,10 +39,11 @@ export class AND4321Parser {
         // 사용자 정책: 정수만 허용, 음수 0 처리
         const finalWeight = Math.floor(Math.max(0, weightValue * sign));
 
-        const result = {
+        const result: WeighingReading = {
             status,
             weight: finalWeight,
             unit,
+            source: 'SERIAL',
             receivedAt: new Date(),
             raw: cleanRaw
         };
