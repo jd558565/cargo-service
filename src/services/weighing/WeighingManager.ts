@@ -1,4 +1,4 @@
-import { WeighingReading, WeighingSource } from './types';
+import { WeighingReading, WeighingSource, ConnectionStatus } from './types';
 import { weighingSource } from './MockWeighingSource';
 
 export class WeighingManager {
@@ -6,7 +6,7 @@ export class WeighingManager {
     private readonly STABLE_THRESHOLD = 5;
     private currentReading: WeighingReading | null = null;
     private listeners: ((reading: WeighingReading) => void)[] = [];
-    private isConnected: boolean = false;
+    private connectionStatus: ConnectionStatus = 'DISCONNECTED';
 
     constructor(private source: WeighingSource) {
         this.source.onReading((data) => {
@@ -16,6 +16,11 @@ export class WeighingManager {
 
     private processReading(data: WeighingReading) {
         this.currentReading = data;
+
+        // 데이터가 들어온다는 것은 연결된 상태임
+        if (this.connectionStatus !== 'CONNECTED') {
+            this.connectionStatus = 'CONNECTED';
+        }
 
         // 안정성 판단 로직
         if (data.status === 'STABLE') {
@@ -44,30 +49,60 @@ export class WeighingManager {
 
     // 실제 하드웨어 연결
     async connect() {
-        if (!this.isConnected) {
+        if (this.connectionStatus === 'CONNECTED' || this.connectionStatus === 'CONNECTING') {
+            return;
+        }
+
+        try {
+            this.connectionStatus = 'CONNECTING';
+            // 리스너들에게 상태 변경 알림 (가상 데이터 전송)
+            this.notifyStatusChange();
+
             await this.source.connect();
-            this.isConnected = true;
+
+            this.connectionStatus = 'CONNECTED';
+            this.notifyStatusChange();
+        } catch (error) {
+            this.connectionStatus = 'ERROR';
+            this.notifyStatusChange();
+            console.error('Connection failed:', error);
+            throw error;
         }
     }
 
     async disconnect() {
-        if (this.isConnected) {
+        if (this.connectionStatus === 'DISCONNECTED') {
+            return;
+        }
+
+        try {
             await this.source.disconnect();
-            this.isConnected = false;
+        } finally {
+            this.connectionStatus = 'DISCONNECTED';
             this.currentReading = null;
-            // 연결 해제됨을 알림
-            this.listeners.forEach(fn => fn({
-                status: 'ERROR',
-                weight: 0,
-                unit: 'kg',
-                receivedAt: new Date(),
-                raw: 'DEVICE_DISCONNECTED'
-            }));
+            this.notifyStatusChange();
         }
     }
 
     getConnectedStatus() {
-        return this.isConnected;
+        return this.connectionStatus === 'CONNECTED';
+    }
+
+    getConnectionState(): ConnectionStatus {
+        return this.connectionStatus;
+    }
+
+    private notifyStatusChange() {
+        if (!this.currentReading) {
+            // 초기 더미 데이터로 상태만 전송
+            this.listeners.forEach(fn => fn({
+                status: this.connectionStatus === 'ERROR' ? 'ERROR' : 'UNSTABLE',
+                weight: 0,
+                unit: 'kg',
+                receivedAt: new Date(),
+                raw: `STATUS_CHANGE:${this.connectionStatus}`
+            }));
+        }
     }
 
     // 무게 설정 (Mock 전용)

@@ -12,6 +12,10 @@ export class MockWeighingSource implements WeighingSource {
             console.log('MockWeighingSource already connected');
             return;
         }
+
+        // 연결 시뮬레이션 지연 (1초)
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
         this.isConnected = true;
         console.log('MockWeighingSource connected');
         this.startStreaming();
@@ -31,13 +35,13 @@ export class MockWeighingSource implements WeighingSource {
     }
 
     setMockWeight(weight: number, status: WeighingReading['status'] = 'UNSTABLE'): void {
-        this.currentWeight = weight;
+        this.currentWeight = Math.floor(Math.max(0, weight)); // 0 또는 자연수 강제
         this.currentStatus = status;
 
         // 무게가 설정되면 잠시 후 Stable로 변경되는 시뮬레이션
         if (status === 'UNSTABLE') {
             setTimeout(() => {
-                if (this.currentWeight === weight) {
+                if (this.currentWeight === Math.floor(Math.max(0, weight))) {
                     this.currentStatus = 'STABLE';
                 }
             }, 2000);
@@ -53,15 +57,22 @@ export class MockWeighingSource implements WeighingSource {
 
         this.timer = setInterval(() => {
             if (this.callback && this.isConnected) {
-                // 미세한 노이즈 추가
-                const noise = this.currentStatus === 'UNSTABLE' ? (Math.random() - 0.5) * 2 : (Math.random() - 0.5) * 0.1;
+                // 노이즈 추가하되 결과는 항상 정수
+                let noise = 0;
+                if (this.currentStatus === 'UNSTABLE') {
+                    // -2 ~ +2 사이의 정수 노이즈
+                    noise = Math.floor(Math.random() * 5) - 2;
+                }
+
+                let finalWeight = this.currentWeight + noise;
+                finalWeight = Math.max(0, finalWeight); // 음수 방지
 
                 this.callback({
                     status: this.currentStatus,
-                    weight: parseFloat((this.currentWeight + noise).toFixed(2)),
+                    weight: finalWeight,
                     unit: 'kg',
                     receivedAt: new Date(),
-                    raw: `MOCK_DATA:${this.currentStatus}:${this.currentWeight}`
+                    raw: `MOCK_DATA:${this.currentStatus}:${finalWeight}`
                 });
             }
         }, 200); // 200ms 마다 전송
