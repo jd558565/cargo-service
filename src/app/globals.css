@@ -1,0 +1,64 @@
+:root {
+  --primary: #00f2ff;
+  --primary-glow: rgba(0, 242, 255, 0.4);
+  --bg-dark: #0a0c10;
+  --card-bg: rgba(255, 255, 255, 0.05);
+  --border-color: rgba(255, 255, 255, 0.1);
+  --text-main: #e0e6ed;
+  --text-dim: #94a3b8;
+  --stable: #10b981;
+  --unstable: #f59e0b;
+  --error: #ef4444;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg-dark);
+  color: var(--text-main);
+  font-family: 'Inter', -apple-system, sans-serif;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+/* Glassmorphism Card */
+.glass-card {
+  background: var(--card-bg);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-color);
+  border-radius: 1.5rem;
+  padding: 2rem;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  transition: transform 0.3s ease, border-color 0.3s ease;
+}
+
+.glass-card:hover {
+  border-color: var(--primary);
+}
+
+/* Typography Gradient */
+.gradient-text {
+  background: linear-gradient(135deg, #fff 0%, var(--primary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Glow Effect */
+.glow-shadow {
+  box-shadow: 0 0 20px var(--primary-glow);
+}
+
+/* Animations */
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.6; }
+  100% { opacity: 1; }
+}
+
+.animate-pulse {
+  animation: pulse 2s infinite ease-in-out;
+}
