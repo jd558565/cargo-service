@@ -129,15 +129,22 @@ if (COM_PORT) {
 
     // 사용 가능한 포트 리스트를 출력하여 사용자에게 도움을 줌
     try {
+        console.log(`[Weighter] 시리얼 포트 탐색 시작...`);
         const { SerialPort } = require('serialport');
         SerialPort.list().then((ports: any[]) => {
             if (ports.length > 0) {
-                console.log(`[Weighter] 현재 사용 가능한 포트 리스트:`);
+                console.log(`[Weighter] ★ 연결 가능한 포트 ${ports.length}개 발견:`);
                 ports.forEach(p => console.log(`  - ${p.path} (${p.manufacturer || '알 수 없는 제조사'})`));
-                console.log(`[Weighter] 위 포트 중 하나를 사용하려면 .env 파일에 COM_PORT=포트명 을 입력하세요.`);
+                console.log(`[Weighter] 위 포트 중 하나를 사용하려면 .env.local 파일에 COM_PORT=포트명 을 입력하세요.`);
+            } else {
+                console.log(`[Weighter] ⚠ 감지된 시리얼 포트가 없습니다. 계량기가 연결되어 있는지 확인하세요.`);
             }
+        }).catch((err: any) => {
+            console.error(`[Weighter] 시리얼 포트 목록을 가져오는 중 오류 발생:`, err);
         });
-    } catch (e) { }
+    } catch (e) {
+        console.error(`[Weighter] SerialPort 라이브러리 로드 실패:`, e);
+    }
 }
 
 export const weighingManager = new WeighingManager(activeSource);
