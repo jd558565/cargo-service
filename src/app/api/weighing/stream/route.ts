@@ -6,19 +6,30 @@ export async function GET(req: NextRequest) {
 
     const stream = new ReadableStream({
         start(controller) {
+            const sendPing = () => {
+                try {
+                    controller.enqueue(encoder.encode(': ping\n\n'));
+                } catch (e) {
+                    clearInterval(pingInterval);
+                }
+            };
+
+            const pingInterval = setInterval(sendPing, 5000);
+
             const unsubscribe = weighingManager.subscribe((reading) => {
                 const data = `data: ${JSON.stringify(reading)}\n\n`;
                 try {
                     controller.enqueue(encoder.encode(data));
                 } catch (e) {
-                    // Controller might be closed
                     unsubscribe();
+                    clearInterval(pingInterval);
                 }
             });
 
             req.signal.addEventListener('abort', () => {
                 unsubscribe();
-                controller.close();
+                clearInterval(pingInterval);
+                try { controller.close(); } catch (e) { }
             });
         },
     });

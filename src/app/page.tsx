@@ -6,23 +6,23 @@ export default function Home() {
     <main className="min-h-screen flex flex-col items-center justify-center p-8 gap-8">
       <div className="flex flex-col items-center mb-8">
         <h1 className="text-4xl font-black tracking-tighter mb-2">
-          CARGO<span className="text-primary" style={{ color: 'var(--primary)' }}>WEIGHT</span>
+          <span className="text-primary" style={{ color: 'var(--primary)' }}>WEIGHT</span>ER
         </h1>
         <p className="text-dim text-sm tracking-widest uppercase opacity-70" style={{ color: 'var(--text-dim)' }}>
-          Precision Integrated Weighing System
+          산업용 정밀 통합 계량 시스템
         </p>
       </div>
 
       <div className="flex flex-wrap justify-center gap-8 items-start">
         {/* Real-time Indicator */}
         <section className="flex flex-col gap-4">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-dim px-2">Live Indicator</h3>
+          <h3 className="text-xs font-bold uppercase tracking-widest text-dim px-2">정밀 계량 인디케이터</h3>
           <WeighingDisplay />
         </section>
 
         {/* Development Tools */}
         <section className="flex flex-col gap-4">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-dim px-2">Hardware Emulator</h3>
+          <h3 className="text-xs font-bold uppercase tracking-widest text-dim px-2">하드웨어 에뮬레이터 (개발용)</h3>
           <MockController />
         </section>
       </div>
