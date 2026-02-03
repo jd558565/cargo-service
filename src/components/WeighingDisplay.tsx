@@ -19,6 +19,8 @@ export default function WeighingDisplay() {
     const [retryCount, setRetryCount] = useState(0);
     const [hasReceivedData, setHasReceivedData] = useState(false); // 실제 데이터 수신 여부
     const [availablePorts, setAvailablePorts] = useState<any[]>([]); // 기기에서 감지된 포트
+    const [errorDetails, setErrorDetails] = useState<string | null>(null);
+    const [showErrorModal, setShowErrorModal] = useState(false);
 
     // 기록 불러오기 (초기 로드)
     useEffect(() => {
@@ -148,11 +150,14 @@ export default function WeighingDisplay() {
             }
 
             if (!data.success) {
-                alert('연결 명령 실패: ' + data.error);
+                setErrorDetails(data.error || '알 수 없는 오류가 발생했습니다.');
+                setShowErrorModal(true);
                 setConnectionStatus('ERROR');
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Connection error:', error);
+            setErrorDetails(error.message || '서버와의 통신 중 오류가 발생했습니다.');
+            setShowErrorModal(true);
             setConnectionStatus('ERROR');
         } finally {
             setIsProcessing(false);
@@ -313,17 +318,53 @@ export default function WeighingDisplay() {
                     )}
                 </div>
             </div>
-            {/* Overload Alert (OL) */}
-            {reading?.status === 'OVERLOAD' && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
-                    <div className="glass-card p-12 border-2 border-error animate-in zoom-in duration-300 flex flex-col items-center gap-6 shadow-[0_0_50px_rgba(239,68,68,0.3)]">
-                        <div className="w-20 h-20 rounded-full bg-error/20 flex items-center justify-center animate-pulse">
-                            <span className="text-4xl">⚠️</span>
+            {/* Connection Error Modal */}
+            {showErrorModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-xl animate-in fade-in duration-300 p-6">
+                    <div className="glass-card max-w-md w-full p-8 border-2 border-error/50 animate-in zoom-in duration-300 flex flex-col items-center gap-6 shadow-[0_0_80px_rgba(239,68,68,0.2)]">
+                        <div className="w-16 h-16 rounded-full bg-error/10 flex items-center justify-center">
+                            <span className="text-3xl">🚫</span>
                         </div>
-                        <h2 className="text-4xl font-black text-error tracking-tighter">차량 과적 감지</h2>
-                        <p className="text-xl font-bold text-white/70">차량을 저울에서 내려주세요</p>
-                        <div className="mt-4 px-8 py-3 bg-error text-black font-black rounded-full animate-bounce">
-                            경고: 측정 불가
+
+                        <div className="text-center">
+                            <h2 className="text-2xl font-black text-error tracking-tight mb-2">계량기 연결 실패</h2>
+                            <p className="text-sm text-white/60 leading-relaxed">
+                                인디케이터와의 통신을 시작할 수 없습니다.<br />
+                                하드웨어 연결 상태를 확인해 주세요.
+                            </p>
+                        </div>
+
+                        <div className="w-full bg-white/5 rounded-xl p-4 border border-white/5">
+                            <div className="flex flex-col gap-2">
+                                <div className="flex justify-between items-center text-[11px]">
+                                    <span className="opacity-40 uppercase font-bold tracking-wider">대상 포트</span>
+                                    <span className="font-mono text-error">COM3</span>
+                                </div>
+                                <div className="flex justify-between items-center text-[11px]">
+                                    <span className="opacity-40 uppercase font-bold tracking-wider">통신 설정</span>
+                                    <span className="font-mono opacity-80">2400 7E1 (Even Parity)</span>
+                                </div>
+                                <div className="h-[1px] bg-white/5 my-1" />
+                                <div className="flex flex-col gap-1">
+                                    <span className="text-[10px] opacity-30 uppercase font-bold tracking-wider text-center mb-1">Error Message</span>
+                                    <p className="text-[11px] text-white/80 font-mono text-center break-all whitespace-pre-wrap">
+                                        {errorDetails}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col gap-3 w-full">
+                            <button
+                                onClick={() => setShowErrorModal(false)}
+                                className="w-full py-4 bg-error text-black font-black rounded-2xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-error/20"
+                            >
+                                오류 확인
+                            </button>
+                            <p className="text-[10px] text-white/30 text-center leading-tight">
+                                ※ Vercel 배포 주소가 아닌 <br />
+                                <span className="text-primary opacity-60">http://localhost:3000</span> 에서만 작동합니다.
+                            </p>
                         </div>
                     </div>
                 </div>
