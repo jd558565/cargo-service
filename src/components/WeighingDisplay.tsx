@@ -21,9 +21,6 @@ export default function WeighingDisplay() {
     const [availablePorts, setAvailablePorts] = useState<any[]>([]); // 기기에서 감지된 포트
     const [errorDetails, setErrorDetails] = useState<string | null>(null);
     const [showErrorModal, setShowErrorModal] = useState(false);
-    const [debugLogs, setDebugLogs] = useState<string[]>([]);
-    const [expectedMode, setExpectedMode] = useState<'STREAM' | 'AUTO' | 'COMMAND'>('STREAM');
-    const [diagnosisStatus, setDiagnosisStatus] = useState<string>('대기 중');
 
     // 기록 불러오기 (초기 로드)
     useEffect(() => {
@@ -76,10 +73,6 @@ export default function WeighingDisplay() {
 
             eventSource.onmessage = (event) => {
                 const data = JSON.parse(event.data);
-
-                // 디버그 로그 누적 (최근 10개)
-                const logEntry = `[${new Date().toLocaleTimeString()}] ${data.raw || 'No Raw Data'} -> ${data.weight}kg (${data.status})`;
-                setDebugLogs(prev => [logEntry, ...prev].slice(0, 10));
 
                 console.log(`[UI RECEIVE] Source: ${data.source}, Weight: ${data.weight}`);
 
@@ -324,73 +317,6 @@ export default function WeighingDisplay() {
                             </div>
                         ))
                     )}
-                </div>
-            </div>
-
-            {/* Diagnosis & Debug Panel (USER REQUESTED) */}
-            <div className="glass-card p-6 flex flex-col gap-6" style={{ minWidth: '400px' }}>
-                <div className="flex justify-between items-center border-b border-white/5 pb-2">
-                    <h3 className="text-xs font-bold text-dim uppercase tracking-widest">
-                        🔍 계량기 상태 정밀 진단 (F9 설정 확인)
-                    </h3>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-                        {diagnosisStatus}
-                    </span>
-                </div>
-
-                <div className="flex flex-col gap-4">
-                    <p className="text-[11px] text-white/50 leading-relaxed">
-                        계량기에서 값이 넘어오지 않거나 멈춰있다면, 계량기의 <b>F9(출력 모드)</b> 설정을 확인해야 합니다. 아래에서 현재 설정을 선택하여 진단을 시작하세요.
-                    </p>
-
-                    <div className="grid grid-cols-3 gap-2">
-                        <button
-                            onClick={() => { setExpectedMode('STREAM'); setDiagnosisStatus('연속 수신 대기 중...'); }}
-                            className={`p-3 rounded-xl border text-[10px] font-bold transition-all
-                                ${expectedMode === 'STREAM' ? 'border-primary bg-primary/10 text-primary' : 'border-white/5 opacity-50'}`}
-                        >
-                            F9 = 0<br />(연속 출력)
-                        </button>
-                        <button
-                            onClick={() => { setExpectedMode('AUTO'); setDiagnosisStatus('안정 대기 중...'); }}
-                            className={`p-3 rounded-xl border text-[10px] font-bold transition-all
-                                ${expectedMode === 'AUTO' ? 'border-primary bg-primary/10 text-primary' : 'border-white/5 opacity-50'}`}
-                        >
-                            F9 = 1<br />(안정 시 1회)
-                        </button>
-                        <button
-                            onClick={() => { setExpectedMode('COMMAND'); setDiagnosisStatus('명령 대기 중...'); }}
-                            className={`p-3 rounded-xl border text-[10px] font-bold transition-all
-                                ${expectedMode === 'COMMAND' ? 'border-primary bg-primary/10 text-primary' : 'border-white/5 opacity-50'}`}
-                        >
-                            F9 = 2<br />(버튼 클릭 시)
-                        </button>
-                    </div>
-
-                    <div className="bg-black/40 rounded-xl p-4 border border-white/5">
-                        <h4 className="text-[9px] font-bold text-dim uppercase tracking-widest mb-3 opacity-50">실시간 데이터 스트림 (SERIAL RAW)</h4>
-                        <div className="flex flex-col gap-1.5 font-mono text-[10px] min-h-[120px]">
-                            {debugLogs.length === 0 ? (
-                                <span className="opacity-20 italic">수신 중인 RAW 데이터가 없습니다...</span>
-                            ) : (
-                                debugLogs.map((log, i) => (
-                                    <div key={i} className={`truncate ${i === 0 ? 'text-primary' : 'opacity-40'}`}>
-                                        {log}
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="p-4 rounded-xl bg-white/5 border border-white/5">
-                        <h4 className="text-[10px] font-bold mb-2">💡 자가 진단 결과</h4>
-                        <p className="text-[11px] text-white/70 italic leading-relaxed">
-                            {expectedMode === 'STREAM' && debugLogs.length > 0 && "로그가 계속 올라오는데 값이 안 변한다면? -> 실제로 저울의 무게가 고정된 상태입니다."}
-                            {expectedMode === 'STREAM' && debugLogs.length === 0 && "로그 자체가 안 올라온다면? -> F9 설정을 다시 확인하세요 (F9=0 이어야 함)."}
-                            {expectedMode === 'AUTO' && "물건이 안정(ST) 상태가 될 때만 1회 출력됩니다. 차량이 움직이는 중에는 값이 변하지 않습니다."}
-                            {expectedMode === 'COMMAND' && "인디케이터의 '인쇄' 또는 '전송' 버튼을 눌러야만 웹에 값이 반영됩니다."}
-                        </p>
-                    </div>
                 </div>
             </div>
             {/* Connection Error Modal */}
