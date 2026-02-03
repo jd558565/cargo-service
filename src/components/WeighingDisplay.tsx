@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { WeighingTicket } from './WeighingTicket';
 
 interface WeighingReading {
     status: 'STABLE' | 'UNSTABLE' | 'OVERLOAD' | 'ERROR';
@@ -21,6 +22,7 @@ export default function WeighingDisplay() {
     const [availablePorts, setAvailablePorts] = useState<any[]>([]); // 기기에서 감지된 포트
     const [errorDetails, setErrorDetails] = useState<string | null>(null);
     const [showErrorModal, setShowErrorModal] = useState(false);
+    const [printingRecord, setPrintingRecord] = useState<{ id: number; weight: number; time: Date } | null>(null);
 
     // 기록 불러오기 (초기 로드)
     useEffect(() => {
@@ -177,6 +179,14 @@ export default function WeighingDisplay() {
         setRecords(prev => [newRecord, ...prev].slice(0, 10)); // 최근 10개만 유지
     };
 
+    const handlePrint = (record: { id: number; weight: number; time: Date }) => {
+        setPrintingRecord(record);
+        // 상태가 업데이트되어 티켓이 렌더링된 후 인쇄창 호출 (약간의 지연 필요)
+        setTimeout(() => {
+            window.print();
+        }, 300);
+    };
+
     // UI 텍스트 및 색상 매핑
     const getStatusInfo = () => {
         // 하드웨어 계량 중
@@ -311,9 +321,17 @@ export default function WeighingDisplay() {
                         <p className="text-[11px] text-center py-4 opacity-30 italic">기록된 데이터가 없습니다.</p>
                     ) : (
                         records.map(record => (
-                            <div key={record.id} className="flex justify-between items-center py-2 px-3 bg-white/5 rounded-lg border border-white/5">
-                                <span className="text-[12px] font-bold text-primary">{record.weight.toLocaleString()} kg</span>
-                                <span className="text-[10px] opacity-40">{record.time.toLocaleTimeString()}</span>
+                            <div key={record.id} className="flex justify-between items-center py-2 px-3 bg-white/5 rounded-lg border border-white/5 group">
+                                <div className="flex flex-col">
+                                    <span className="text-[12px] font-bold text-primary">{record.weight.toLocaleString()} kg</span>
+                                    <span className="text-[10px] opacity-40">{record.time.toLocaleString()}</span>
+                                </div>
+                                <button
+                                    onClick={() => handlePrint(record)}
+                                    className="px-3 py-1.5 rounded-lg bg-white/5 text-[10px] font-bold text-white/50 hover:bg-primary hover:text-black transition-all opacity-0 group-hover:opacity-100"
+                                >
+                                    🖨️ 인쇄
+                                </button>
                             </div>
                         ))
                     )}
@@ -370,6 +388,9 @@ export default function WeighingDisplay() {
                     </div>
                 </div>
             )}
+
+            {/* Hidden Printing Component */}
+            <WeighingTicket data={printingRecord} />
         </div>
     );
 }
