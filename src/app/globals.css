@@ -82,6 +82,82 @@
   width: 8px;
 }
 
+@keyframes loading-fill {
+  0% {
+    width: 0%;
+  }
+
+  100% {
+    width: 100%;
+  }
+}
+
+/* 덜컹거리는 진동 효과 (강도 50% 하향 및 위아래 중심) */
+@keyframes truck-rattle {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  25% {
+    transform: translateY(-2px) rotate(-0.5deg);
+  }
+
+  75% {
+    transform: translateY(-1px) rotate(0.5deg);
+  }
+}
+
+/* 배기가스 애니메이션 (오른쪽으로 방향 반전) */
+@keyframes exhaust-cloud {
+  0% {
+    transform: scale(0.3) translate(0, 0);
+    opacity: 0;
+  }
+
+  30% {
+    opacity: 0.8;
+  }
+
+  100% {
+    transform: scale(2.5) translate(40px, -20px);
+    opacity: 0;
+  }
+}
+
+/* 화물 들어올리기 애니메이션 */
+@keyframes cargo-lift {
+
+  0%,
+  15%,
+  85%,
+  100% {
+    transform: translateY(0);
+  }
+
+  45%,
+  55% {
+    transform: translateY(-50px);
+  }
+}
+
+.animate-truck {
+  animation: truck-rattle 0.2s infinite ease-in-out;
+}
+
+.animate-cargo {
+  animation: cargo-lift 3.5s ease-in-out infinite;
+}
+
+.exhaust-particle {
+  position: absolute;
+  background: #CED4DA;
+  border-radius: 50%;
+  filter: blur(5px);
+  animation: exhaust-cloud 0.8s infinite;
+}
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }

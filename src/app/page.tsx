@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Scale,
   ClipboardList,
@@ -15,6 +15,15 @@ import WeighingDisplay from '@/components/WeighingDisplay';
 
 export default function Home() {
   const [activeMenu, setActiveMenu] = useState('측정 하기');
+  const [showSplash, setShowSplash] = useState(true);
+
+  // 3.5초 후 스플래시 화면 숨기기
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowSplash(false);
+    }, 3500);
+    return () => clearTimeout(timer);
+  }, []);
 
   const menuItems = [
     { name: '측정 하기', icon: Scale },
@@ -24,7 +33,55 @@ export default function Home() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] flex">
+    <div className="relative min-h-screen bg-[#F8F9FA] flex overflow-hidden">
+      {/* 0. 스플래시 스크린 */}
+      {showSplash && (
+        <div className="fixed inset-0 z-[100] bg-white flex flex-col items-center justify-center animate-out fade-out duration-1000 fill-mode-forwards">
+          <div className="relative flex flex-col items-center gap-2 animate-in zoom-in-95 duration-700">
+            {/* 로고 애니메이션 컨테이너 */}
+            <div className="relative w-[448px] h-[448px] flex items-center justify-center transition-transform hover:scale-105">
+              {/* 1. 하단 차량 본체 (섀시, 바퀴, 캡 하단) - 덜컹거림 진동 */}
+              <div className="absolute inset-0 animate-truck">
+                <img
+                  src="/images/weighter_logo.png"
+                  alt="Truck Body"
+                  className="w-full h-full object-contain filter drop-shadow-[0_10px_20px_rgba(255,111,15,0.08)]"
+                  style={{ clipPath: 'inset(72% 0 0 0)' }}
+                />
+
+                {/* 2. 배기가스 파티클 (우측) */}
+                <div className="absolute bottom-[20%] right-[20%]">
+                  <div className="exhaust-particle w-6 h-6" style={{ animationDelay: '0s' }} />
+                  <div className="exhaust-particle w-4 h-4" style={{ animationDelay: '0.3s' }} />
+                  <div className="exhaust-particle w-8 h-8" style={{ animationDelay: '0.6s' }} />
+                </div>
+              </div>
+
+              {/* 3. 화물(줄무늬 컨테이너) + 크레인 고리 - 함께 들어올리기 모션 */}
+              <div className="absolute inset-0 animate-cargo">
+                <img
+                  src="/images/weighter_logo.png"
+                  alt="Cargo and Hook"
+                  className="w-full h-full object-contain filter drop-shadow-[0_10px_20px_rgba(255,111,15,0.08)]"
+                  style={{ clipPath: 'inset(0 0 28% 0)' }}
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col items-center">
+              <h1 className="text-5xl font-black text-[#FF6F0F] tracking-wider mb-2">
+                Weighter
+              </h1>
+              <p className="text-xl text-[#868B94] font-bold tracking-tight">가장 정확하고 따뜻한 물류의 시작</p>
+            </div>
+          </div>
+          {/* 하단 로딩 바 스타일 - 3.5초간 서서히 채워지도록 수정 */}
+          <div className="absolute bottom-20 w-48 h-1.5 bg-[#E9ECEF] rounded-full overflow-hidden">
+            <div className="h-full bg-[#FF6F0F] animate-[loading-fill_3.5s_linear_forwards]" />
+          </div>
+        </div>
+      )}
+
       {/* 1. 좌측 고정 사이드바 */}
       <aside className="w-[300px] bg-white border-r border-[#E9ECEF] flex flex-col p-6 sticky top-0 h-screen">
         {/* 프로필 카드 */}

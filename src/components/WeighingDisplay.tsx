@@ -47,7 +47,12 @@ export default function WeighingDisplay() {
             setConnectionStatus(data.status);
 
             if (data.status === 'DISCONNECTED') {
-                await fetch('/api/weighing/connect', { method: 'POST' });
+                // 부팅 시 자동 연결 시도
+                await fetch('/api/weighing/connection', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'connect' })
+                });
                 setConnectionStatus('CONNECTING');
             }
         } catch (e) {
@@ -122,15 +127,45 @@ export default function WeighingDisplay() {
                     <span>{connectionStatus === 'CONNECTED' ? '장치 연결됨' : '연결 확인 중'}</span>
                 </div>
 
-                {/* 현재 상태 배지 */}
-                <div className="absolute top-8 right-8 flex items-center gap-2 px-4 py-2 bg-[#F2F3F6] rounded-full font-bold text-sm text-[#4D5159]">
-                    {isStable ? <CheckCircle2 size={18} className="text-[#FF6F0F]" /> : <Activity size={18} className="animate-pulse" />}
-                    <span>{isStable ? '안정적' : '측정 중'}</span>
+                {/* 상태 설정 및 뱃지 영역 */}
+                <div className="absolute top-8 right-8 flex items-center gap-3">
+                    {/* [NEW] 연결/해제 토글 버튼 */}
+                    <button
+                        onClick={async () => {
+                            const action = connectionStatus === 'CONNECTED' ? 'disconnect' : 'connect';
+                            try {
+                                const res = await fetch('/api/weighing/connection', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ action })
+                                });
+                                const data = await res.json();
+                                if (data.success) {
+                                    setConnectionStatus(data.status);
+                                    if (action === 'disconnect') {
+                                        setReading(null);
+                                    }
+                                }
+                            } catch (e) {
+                                console.error('Connection toggle error:', e);
+                            }
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 bg-white border border-[#E9ECEF] rounded-full font-bold text-sm text-[#4D5159] hover:bg-[#F2F3F6] transition-all"
+                    >
+                        <div className={`w-2 h-2 rounded-full ${connectionStatus === 'CONNECTED' ? 'bg-[#FF6F0F]' : 'bg-[#ADB5BD]'}`} />
+                        <span>{connectionStatus === 'CONNECTED' ? '해제하기' : '연결하기'}</span>
+                    </button>
+
+                    {/* 현재 상태 배지 */}
+                    <div className="flex items-center gap-2 px-4 py-2 bg-[#F2F3F6] rounded-full font-bold text-sm text-[#4D5159]">
+                        {isStable ? <CheckCircle2 size={18} className="text-[#FF6F0F]" /> : <Activity size={18} className="animate-pulse" />}
+                        <span>{isStable ? '안정적' : '측정 중'}</span>
+                    </div>
                 </div>
 
                 {/* 본문 - 중량 표시 */}
                 <div className="flex flex-col items-center gap-6">
-                    <span className="text-[#868B94] font-black text-xl tracking-[0.3em] uppercase">Current Weight</span>
+                    <span className="text-[#868B94] font-black text-xl tracking-[0.2em] uppercase">실시간 무게</span>
                     <div className="flex items-baseline gap-4">
                         <span className="text-[120px] font-black text-[#212124] leading-none tracking-tighter shadow-orange-500/10">
                             {displayWeight}
