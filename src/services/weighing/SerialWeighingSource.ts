@@ -14,7 +14,7 @@ export class SerialWeighingSource implements WeighingSource {
 
     constructor(
         private path: string,
-        private baudRate: number = 2400
+        private baudRate: number = 9600
     ) { }
 
     async connect(): Promise<void> {
@@ -23,8 +23,8 @@ export class SerialWeighingSource implements WeighingSource {
                 this.port = new SerialPort({
                     path: this.path,
                     baudRate: this.baudRate,
-                    dataBits: 7,
-                    parity: 'even',
+                    dataBits: 8,
+                    parity: 'none',
                     stopBits: 1,
                     autoOpen: false
                 });

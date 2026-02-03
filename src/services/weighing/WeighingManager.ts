@@ -1,5 +1,5 @@
 import { WeighingReading, WeighingSource, ConnectionStatus } from './types';
-import { weighingSource as mockSource } from './MockWeighingSource';
+import { SerialWeighingSource } from './SerialWeighingSource';
 
 export class WeighingManager {
     private lastReadings: number[] = [];
@@ -97,7 +97,7 @@ export class WeighingManager {
                 status: this.connectionStatus === 'ERROR' ? 'ERROR' : 'UNSTABLE',
                 weight: 0,
                 unit: 'kg',
-                source: COM_PORT ? 'SERIAL' : 'MOCK',
+                source: 'SERIAL',
                 receivedAt: new Date(),
                 raw: `STATUS_CHANGE:${this.connectionStatus}`
             }));
@@ -111,40 +111,10 @@ export class WeighingManager {
     }
 }
 
-// 환경변수 COM_PORT가 있으면 실기 연동, 없으면 Mock 사용
-const COM_PORT = process.env.COM_PORT || '';
+// 하드웨어 포트 설정 (환경변수가 없으면 기본 COM3 사용)
+const COM_PORT = process.env.COM_PORT || 'COM3';
 
-let activeSource = mockSource;
-
-if (COM_PORT) {
-    try {
-        const { SerialWeighingSource } = require('./SerialWeighingSource');
-        activeSource = new SerialWeighingSource(COM_PORT);
-        console.log(`[Weighter] ★ 실제 하드웨어 모드 (Port: ${COM_PORT})`);
-    } catch (e) {
-        console.error(`[Weighter] SerialPort 로드 실패:`, e);
-    }
-} else {
-    console.log(`[Weighter] ⚠ 시뮬레이션 모드 가동 중 (COM_PORT 설정 없음)`);
-
-    // 사용 가능한 포트 리스트를 출력하여 사용자에게 도움을 줌
-    try {
-        console.log(`[Weighter] 시리얼 포트 탐색 시작...`);
-        const { SerialPort } = require('serialport');
-        SerialPort.list().then((ports: any[]) => {
-            if (ports.length > 0) {
-                console.log(`[Weighter] ★ 연결 가능한 포트 ${ports.length}개 발견:`);
-                ports.forEach(p => console.log(`  - ${p.path} (${p.manufacturer || '알 수 없는 제조사'})`));
-                console.log(`[Weighter] 위 포트 중 하나를 사용하려면 .env.local 파일에 COM_PORT=포트명 을 입력하세요.`);
-            } else {
-                console.log(`[Weighter] ⚠ 감지된 시리얼 포트가 없습니다. 계량기가 연결되어 있는지 확인하세요.`);
-            }
-        }).catch((err: any) => {
-            console.error(`[Weighter] 시리얼 포트 목록을 가져오는 중 오류 발생:`, err);
-        });
-    } catch (e) {
-        console.error(`[Weighter] SerialPort 라이브러리 로드 실패:`, e);
-    }
-}
+console.log(`[Weighter] ★ 실제 하드웨어 모드 강제 가동 (Port: ${COM_PORT})`);
+const activeSource = new SerialWeighingSource(COM_PORT);
 
 export const weighingManager = new WeighingManager(activeSource);

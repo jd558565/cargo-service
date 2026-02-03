@@ -178,11 +178,6 @@ export default function WeighingDisplay() {
             return { text: '실시간 하드웨어 계량 중', color: 'var(--primary)', glow: true };
         }
 
-        // 시뮬레이션 계량 중
-        if (reading?.source === 'MOCK') {
-            return { text: '시뮬레이션 모드 (MOCK)', color: '#fb923c', glow: true };
-        }
-
         // SSE는 열렸으나 데이터가 아직 안 들어온 경우
         if (connectionStatus === 'CONNECTED' && !hasReceivedData) {
             return { text: '서버 연결됨 (데이터 대기 중)', color: '#60a5fa', glow: true };
@@ -242,30 +237,13 @@ export default function WeighingDisplay() {
 
                 <div className="flex flex-col items-center mt-4">
                     <h2 className="text-[11px] font-bold text-dim uppercase tracking-[0.3em] mb-4 opacity-50">
-                        현재 중량 ({reading?.source === 'SERIAL' ? 'HARDWARE' : 'SIMULATION'})
+                        현재 중량 (HARDWARE)
                     </h2>
 
-                    {reading?.source === 'MOCK' && availablePorts.length > 0 && (
-                        <div className="mb-6 flex flex-col items-center gap-2 animate-in fade-in duration-700">
-                            <span className="text-[10px] text-amber-500/70 font-bold">감지된 COM 포트Found:</span>
-                            <div className="flex gap-2">
-                                {availablePorts.map(p => (
-                                    <code key={p.path} className="px-2 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded text-[10px] font-bold">
-                                        {p.path}
-                                    </code>
-                                ))}
-                            </div>
-                            <p className="text-[9px] text-white/30 text-center mt-1">
-                                .env 파일에 COM_PORT={availablePorts[0].path} 설정이 필요합니다.
-                            </p>
-                        </div>
-                    )}
 
                     <div className="flex items-baseline gap-2">
                         <span className={`text-8xl font-black tracking-tighter 
-                            ${reading?.source === 'SERIAL' ? 'gradient-text' :
-                                reading?.source === 'MOCK' ? 'text-amber-500' :
-                                    'opacity-20 text-white'}`}>
+                            ${reading?.source === 'SERIAL' ? 'gradient-text' : 'opacity-20 text-white'}`}>
                             {displayWeight}
                         </span>
                         <span className="text-xl font-bold opacity-30">kg</span>

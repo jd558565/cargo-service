@@ -1,5 +1,4 @@
 import WeighingDisplay from '@/components/WeighingDisplay';
-import MockController from '@/components/MockController';
 
 export default function Home() {
   return (
@@ -18,12 +17,6 @@ export default function Home() {
         <section className="flex flex-col gap-4">
           <h3 className="text-xs font-bold uppercase tracking-widest text-dim px-2">정밀 계량 인디케이터</h3>
           <WeighingDisplay />
-        </section>
-
-        {/* Development Tools */}
-        <section className="flex flex-col gap-4">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-dim px-2">하드웨어 에뮬레이터 (개발용)</h3>
-          <MockController />
         </section>
       </div>
 
