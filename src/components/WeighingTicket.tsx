@@ -23,83 +23,83 @@ export const WeighingTicket: React.FC<WeighingTicketProps> = ({ data }) => {
             try {
                 setSettings(JSON.parse(saved));
             } catch (e) {
-                console.error('Failed to load print settings for ticket');
+                console.error('인쇄 설정 불러오기 실패');
             }
         }
-    }, [data]); // 데이타가 바뀔 때(인쇄 시도 시) 설정을 최신으로 불러옴
+    }, [data]);
 
     if (!data) return null;
 
     return (
-        <div id="weighing-ticket" className="print-only p-12 bg-white text-black font-sans border-2 border-double border-black m-4" style={{ width: '210mm', minHeight: '148mm', color: '#000' }}>
-            <div className="text-center mb-8">
-                <h1 className="text-4xl font-extrabold border-b-4 border-black pb-4 mb-2">계 량 증 명 서</h1>
-                <p className="text-sm opacity-60 uppercase">Weighing Certificate</p>
+        <div id="weighing-ticket" className="print-only p-12 bg-white text-black font-sans border-[6px] border-double border-black m-4" style={{ width: '210mm', minHeight: '148mm', color: '#000' }}>
+            <div className="text-center mb-10">
+                <h1 className="text-6xl font-black border-b-8 border-black pb-6 mb-4">계 량 증 명 서</h1>
+                <p className="text-xl font-bold opacity-80 uppercase tracking-widest">공인 정밀 계량 증명</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-8 mb-12">
-                <div className="space-y-4">
-                    <div className="flex justify-between border-b border-gray-300 pb-1">
-                        <span className="font-bold">계량 번호</span>
-                        <span>{data.id}</span>
+            <div className="grid grid-cols-2 gap-12 mb-16">
+                <div className="space-y-6">
+                    <div className="flex justify-between border-b-2 border-gray-400 pb-2">
+                        <span className="text-2xl font-black">계량 번호</span>
+                        <span className="text-2xl font-bold">{data.id}</span>
                     </div>
-                    <div className="flex justify-between border-b border-gray-300 pb-1">
-                        <span className="font-bold">계량 일시</span>
-                        <span>{data.time.toLocaleString()}</span>
+                    <div className="flex justify-between border-b-2 border-gray-400 pb-2">
+                        <span className="text-2xl font-black">계량 일시</span>
+                        <span className="text-2xl font-bold">{data.time.toLocaleString()}</span>
                     </div>
-                    <div className="flex justify-between border-b border-gray-300 pb-1">
-                        <span className="font-bold">차량 번호</span>
-                        <span className="px-2">{settings.carNumber}</span>
+                    <div className="flex justify-between border-b-2 border-gray-400 pb-2">
+                        <span className="text-2xl font-black">차량 번호</span>
+                        <span className="text-2xl font-bold">{settings.carNumber}</span>
                     </div>
                 </div>
-                <div className="space-y-4">
-                    <div className="flex justify-between border-b border-gray-300 pb-1">
-                        <span className="font-bold">품 목</span>
-                        <span>{settings.itemType}</span>
+                <div className="space-y-6">
+                    <div className="flex justify-between border-b-2 border-gray-400 pb-2">
+                        <span className="text-2xl font-black">품 목</span>
+                        <span className="text-2xl font-bold">{settings.itemType}</span>
                     </div>
-                    <div className="flex justify-between border-b border-gray-300 pb-1">
-                        <span className="font-bold">계량 업체</span>
-                        <span>{settings.companyName}</span>
+                    <div className="flex justify-between border-b-2 border-gray-400 pb-2">
+                        <span className="text-2xl font-black">계량 업체</span>
+                        <span className="text-2xl font-bold">{settings.companyName}</span>
                     </div>
-                    <div className="flex justify-between border-b border-gray-300 pb-1">
-                        <span className="font-bold">연락처</span>
-                        <span>{settings.contact}</span>
+                    <div className="flex justify-between border-b-2 border-gray-400 pb-2">
+                        <span className="text-2xl font-black">연락처</span>
+                        <span className="text-2xl font-bold">{settings.contact}</span>
                     </div>
                 </div>
             </div>
 
-            <div className="border-4 border-black p-8 text-center mb-12 relative overflow-hidden">
-                <div className="text-sm text-gray-500 mb-2 font-bold uppercase tracking-widest">Net Weight</div>
-                <div className="text-7xl font-black">
-                    {data.weight.toLocaleString()} <span className="text-3xl">kg</span>
+            <div className="border-8 border-black p-12 text-center mb-16 relative overflow-hidden bg-gray-50">
+                <div className="text-2xl text-gray-600 mb-4 font-black tracking-[0.3em]">실 제 중 량 (NET WEIGHT)</div>
+                <div className="text-[100px] font-black leading-none">
+                    {data.weight.toLocaleString()} <span className="text-5xl ml-2">kg</span>
                 </div>
 
                 {settings.showStamp && (
-                    <div className="absolute right-8 bottom-4 w-24 h-24 border-4 border-red-600 rounded-full flex items-center justify-center text-red-600 font-bold text-xl transform -rotate-12 opacity-80">
-                        <div className="border-2 border-red-600 w-20 h-20 rounded-full flex items-center justify-center border-dashed">
+                    <div className="absolute right-12 bottom-6 w-32 h-32 border-8 border-red-600 rounded-full flex items-center justify-center text-red-600 font-black text-2xl transform -rotate-15 opacity-90">
+                        <div className="border-4 border-red-600 w-28 h-28 rounded-full flex items-center justify-center border-dashed">
                             계량인
                         </div>
                     </div>
                 )}
             </div>
 
-            <div className="grid grid-cols-3 gap-4 text-center text-sm mb-12">
-                <div className="border border-black p-4">
-                    <div className="font-bold mb-6">계량원</div>
-                    <div className="opacity-30 text-xs">서명 또는 날인</div>
+            <div className="grid grid-cols-3 gap-8 text-center text-xl mb-16">
+                <div className="border-2 border-black p-8">
+                    <div className="font-black mb-10">계량원</div>
+                    <div className="opacity-40 text-sm">서명 또는 날인</div>
                 </div>
-                <div className="border border-black p-4">
-                    <div className="font-bold mb-6">운송자</div>
-                    <div className="opacity-30 text-xs">서명 또는 날인</div>
+                <div className="border-2 border-black p-8">
+                    <div className="font-black mb-10">운송자</div>
+                    <div className="opacity-40 text-sm">서명 또는 날인</div>
                 </div>
-                <div className="border border-black p-4">
-                    <div className="font-bold mb-6">확인자</div>
-                    <div className="opacity-30 text-xs">서명 또는 날인</div>
+                <div className="border-2 border-black p-8">
+                    <div className="font-black mb-10">확인자</div>
+                    <div className="opacity-40 text-sm">서명 또는 날인</div>
                 </div>
             </div>
 
-            <div className="text-center text-[11px] opacity-60 mt-auto pt-8 border-t border-dotted border-gray-400">
-                본 증명서는 정밀 계량 시스템(AntiGravity Logic)에 의해 자동으로 발행되었습니다.
+            <div className="text-center text-sm font-bold opacity-60 mt-auto pt-10 border-t-2 border-dotted border-gray-400">
+                본 증명서는 안티그래비티 정밀 계량 시스템에 의해 자동으로 발행되었습니다.
             </div>
 
             <style jsx global>{`
@@ -115,7 +115,7 @@ export const WeighingTicket: React.FC<WeighingTicketProps> = ({ data }) => {
                         top: 0;
                         width: 100%;
                         margin: 0;
-                        padding: 40px;
+                        padding: 60px;
                         display: block !important;
                         border: none !important;
                     }

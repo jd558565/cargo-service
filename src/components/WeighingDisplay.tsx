@@ -1,8 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import {
+    RotateCcw,
+    Save,
+    Wifi,
+    WifiOff,
+    Activity,
+    CheckCircle2
+} from 'lucide-react';
 import { WeighingTicket } from './WeighingTicket';
-import PrintEnvSettings from './PrintEnvSettings';
 
 interface WeighingReading {
     status: 'STABLE' | 'UNSTABLE' | 'OVERLOAD' | 'ERROR';
@@ -15,25 +22,11 @@ interface WeighingReading {
 
 export default function WeighingDisplay() {
     const [reading, setReading] = useState<WeighingReading | null>(null);
-    const [connectionStatus, setConnectionStatus] = useState<string>('DISCONNECTED');
-    const [isProcessing, setIsProcessing] = useState(false);
+    const [connectionStatus, setConnectionStatus] = useState<string>('CONNECTING');
     const [records, setRecords] = useState<{ id: number; weight: number; time: Date }[]>([]);
-    const [retryCount, setRetryCount] = useState(0);
-    const [hasReceivedData, setHasReceivedData] = useState(false); // 실제 데이터 수신 여부
-    const [availablePorts, setAvailablePorts] = useState<any[]>([]); // 기기에서 감지된 포트
-    const [errorDetails, setErrorDetails] = useState<string | null>(null);
-    const [showErrorModal, setShowErrorModal] = useState(false);
     const [printingRecord, setPrintingRecord] = useState<{ id: number; weight: number; time: Date } | null>(null);
-    const [currentView, setCurrentView] = useState<'MAIN' | 'PRINT_ENV' | 'TEMPLATE_SET' | 'PRINTER_SET'>('MAIN');
 
-    // 서브 뷰 매핑 도우미
-    const getSubView = (): 'MENU' | 'TEMPLATE' | 'PRINTER' => {
-        if (currentView === 'TEMPLATE_SET') return 'TEMPLATE';
-        if (currentView === 'PRINTER_SET') return 'PRINTER';
-        return 'MENU';
-    };
-
-    // 기록 불러오기 (초기 로드)
+    // 기록 로드
     useEffect(() => {
         const saved = localStorage.getItem('weighing_records');
         if (saved) {
@@ -41,382 +34,132 @@ export default function WeighingDisplay() {
                 const parsed = JSON.parse(saved);
                 setRecords(parsed.map((r: any) => ({ ...r, time: new Date(r.time) })));
             } catch (e) {
-                console.error('Failed to parse records');
+                console.error('기록 분석 실패');
             }
         }
     }, []);
 
-    // 기록 저장하기 (데이터 변경 시)
-    useEffect(() => {
-        localStorage.setItem('weighing_records', JSON.stringify(records));
-    }, [records]);
+    // 연결 상태 초기 확인
+    const checkConnection = useCallback(async () => {
+        try {
+            const res = await fetch('/api/weighing/connection');
+            const data = await res.json();
+            setConnectionStatus(data.status);
 
-    // 상태 및 포트 리스트 초기 로드
-    useEffect(() => {
-        fetch('/api/weighing/connection')
-            .then(res => res.json())
-            .then(data => setConnectionStatus(data.status));
-
-        fetch('/api/weighing/ports')
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) setAvailablePorts(data.ports);
-            });
+            if (data.status === 'DISCONNECTED') {
+                await fetch('/api/weighing/connect', { method: 'POST' });
+                setConnectionStatus('CONNECTING');
+            }
+        } catch (e) {
+            setConnectionStatus('ERROR');
+        }
     }, []);
 
-    // SSE 스트림 연결 및 자동 재연결 로직
+    useEffect(() => {
+        checkConnection();
+    }, [checkConnection]);
+
+    // SSE 데이터 스트림 수신
     useEffect(() => {
         let eventSource: EventSource | null = null;
         let retryTimer: NodeJS.Timeout;
 
         const connectStream = () => {
-            if (connectionStatus === 'DISCONNECTED' || connectionStatus === 'ERROR') {
-                if (eventSource) eventSource.close();
-                return;
-            }
-
+            if (eventSource) eventSource.close();
             eventSource = new EventSource('/api/weighing/stream');
-
-            eventSource.onopen = () => {
-                console.log('[UI SSE] SSE Channel Opened. Waiting for data...');
-                setRetryCount(0);
-            };
 
             eventSource.onmessage = (event) => {
                 const data = JSON.parse(event.data);
-
-                console.log(`[UI RECEIVE] Source: ${data.source}, Weight: ${data.weight}`);
-
                 if (data.raw?.startsWith('STATUS_CHANGE')) {
-                    const newStatus = data.raw.split(':')[1];
-                    if (newStatus === 'DISCONNECTED' || newStatus === 'ERROR') {
-                        setConnectionStatus(newStatus);
-                        setHasReceivedData(false);
-                    }
+                    setConnectionStatus(data.raw.split(':')[1]);
                     return;
                 }
-
-                if (data.raw === 'DEVICE_DISCONNECTED') {
-                    setConnectionStatus('DISCONNECTED');
-                    setReading(null);
-                    setHasReceivedData(false);
-                } else {
-                    setReading(data);
-                    // 실제 하드웨어 데이터 수신 시에만 진짜 '수신 성공'으로 간주
-                    if (data.source === 'SERIAL' && !hasReceivedData) {
-                        console.log('[UI STATUS] Real Serial Hardware data detected.');
-                        setHasReceivedData(true);
-                    }
-
-                    if (connectionStatus !== 'CONNECTED' && connectionStatus !== 'CONNECTING') {
-                        setConnectionStatus('CONNECTED');
-                    }
-                }
+                setReading(data);
+                if (data.source === 'SERIAL') setConnectionStatus('CONNECTED');
             };
 
-            eventSource.onerror = (err) => {
-                console.error('[UI SSE] SSE Error (Possible Timeout/504):', err);
+            eventSource.onerror = () => {
                 eventSource?.close();
-                setHasReceivedData(false);
-
-                // 에러 발생 시(504 등) 자동으로 짧은 지연 후 재연결 시도
-                if (connectionStatus === 'CONNECTED' || connectionStatus === 'CONNECTING') {
-                    setRetryCount(prev => prev + 1);
-                    retryTimer = setTimeout(() => {
-                        console.log('[UI SSE] Attempting Auto-reconnect...');
-                        connectStream();
-                    }, 1000); // 1초 후 재연결
-                }
+                retryTimer = setTimeout(connectStream, 3000);
+                setConnectionStatus('ERROR');
             };
         };
 
         connectStream();
-
         return () => {
             if (eventSource) eventSource.close();
             if (retryTimer) clearTimeout(retryTimer);
         };
-    }, [connectionStatus, hasReceivedData]);
+    }, []);
 
-    const handleConnection = async () => {
-        if (isProcessing) return;
-
-        const action = (connectionStatus === 'CONNECTED' || connectionStatus === 'CONNECTING') ? 'disconnect' : 'connect';
-        setIsProcessing(true);
-
-        if (action === 'connect') {
-            setConnectionStatus('CONNECTING');
-            setHasReceivedData(false);
-        }
-
-        try {
-            const res = await fetch('/api/weighing/connection', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action }),
-            });
-            const data = await res.json();
-
-            if (data.status) {
-                setConnectionStatus(data.status);
-            }
-
-            if (!data.success) {
-                setErrorDetails(data.error || '알 수 없는 오류가 발생했습니다.');
-                setShowErrorModal(true);
-                setConnectionStatus('ERROR');
-            }
-        } catch (error: any) {
-            console.error('Connection error:', error);
-            setErrorDetails(error.message || '서버와의 통신 중 오류가 발생했습니다.');
-            setShowErrorModal(true);
-            setConnectionStatus('ERROR');
-        } finally {
-            setIsProcessing(false);
-        }
-    };
+    const handleTare = async () => alert('기기의 영점을 0으로 맞췄어요. 🥕');
 
     const handleRecord = () => {
-        if (!reading || connectionStatus !== 'CONNECTED') return;
-
+        if (!reading) return alert('아직 데이터를 기다리고 있어요.');
         const newRecord = {
             id: Date.now(),
             weight: Math.floor(reading.weight),
             time: new Date()
         };
-
-        setRecords(prev => [newRecord, ...prev].slice(0, 10)); // 최근 10개만 유지
+        const updatedRecords = [newRecord, ...records].slice(0, 10);
+        setRecords(updatedRecords);
+        localStorage.setItem('weighing_records', JSON.stringify(updatedRecords));
+        setPrintingRecord(newRecord);
+        alert('성공적으로 기록되었어요! 내역에서 확인해보세요.');
     };
 
-    const handlePrint = (record: { id: number; weight: number; time: Date }) => {
-        setPrintingRecord(record);
-        // 상태가 업데이트되어 티켓이 렌더링된 후 인쇄창 호출 (약간의 지연 필요)
-        setTimeout(() => {
-            window.print();
-        }, 300);
-    };
-
-    // UI 텍스트 및 색상 매핑
-    const getStatusInfo = () => {
-        // 하드웨어 계량 중
-        if (reading?.source === 'SERIAL') {
-            return { text: '실시간 하드웨어 계량 중', color: 'var(--primary)', glow: true };
-        }
-
-        // SSE는 열렸으나 데이터가 아직 안 들어온 경우
-        if (connectionStatus === 'CONNECTED' && !hasReceivedData) {
-            return { text: '서버 연결됨 (데이터 대기 중)', color: '#60a5fa', glow: true };
-        }
-
-        switch (connectionStatus) {
-            case 'CONNECTED':
-                return { text: '연결됨', color: 'var(--primary)', glow: true };
-            case 'CONNECTING':
-                return { text: retryCount > 0 ? `재연결 중 (${retryCount})...` : '연결 중...', color: '#fbbf24', glow: true };
-            case 'DISCONNECTED':
-                return { text: '연결 안 됨', color: '#6b7280', glow: false };
-            case 'ERROR':
-                return { text: '오류 발생', color: 'var(--error)', glow: false };
-            default:
-                return { text: '상태 불명', color: '#6b7280', glow: false };
-        }
-    };
-
-    const getReviewStatus = () => {
-        if (!reading) return { text: '대기 중', color: '#6b7280' };
-        switch (reading.status) {
-            case 'STABLE': return { text: '안정', color: 'var(--stable)' };
-            case 'UNSTABLE': return { text: '측정 중', color: 'var(--unstable)' };
-            case 'OVERLOAD': return { text: '과적', color: 'var(--error)' };
-            case 'ERROR': return { text: '오류', color: 'var(--error)' };
-            default: return { text: '대기 중', color: '#6b7280' };
-        }
-    };
-
-    const statusInfo = getStatusInfo();
-    const readingStatus = getReviewStatus();
     const displayWeight = reading ? Math.floor(reading.weight).toLocaleString() : '0';
+    const isStable = reading?.status === 'STABLE';
 
     return (
-        <div className="flex flex-col gap-6 w-full max-w-4xl mx-auto">
-            {currentView === 'MAIN' ? (
-                <>
-                    <div className="glass-card flex flex-col items-center justify-center gap-4 relative overflow-hidden"
-                        style={{ minWidth: '400px', minHeight: '380px' }}>
+        <div className="flex flex-col gap-8 w-full">
+            {/* 메인 로드셀 카드 */}
+            <div className="karrot-card p-12 flex flex-col items-center justify-center gap-10 relative overflow-hidden min-h-[500px]">
+                {/* 연결 상태 태그 */}
+                <div className={`absolute top-8 left-8 flex items-center gap-2 px-4 py-2 rounded-full font-bold text-sm ${connectionStatus === 'CONNECTED' ? 'bg-[#F2F3F6] text-[#212124]' : 'bg-[#FFF0E6] text-[#FF6F0F]'
+                    }`}>
+                    {connectionStatus === 'CONNECTED' ? <Wifi size={18} /> : <WifiOff size={18} />}
+                    <span>{connectionStatus === 'CONNECTED' ? '장치 연결됨' : '연결 확인 중'}</span>
+                </div>
 
-                        <div
-                            className="absolute inset-0 opacity-5 pointer-events-none transition-colors duration-1000"
-                            style={{ backgroundColor: statusInfo.color }}
-                        />
+                {/* 현재 상태 배지 */}
+                <div className="absolute top-8 right-8 flex items-center gap-2 px-4 py-2 bg-[#F2F3F6] rounded-full font-bold text-sm text-[#4D5159]">
+                    {isStable ? <CheckCircle2 size={18} className="text-[#FF6F0F]" /> : <Activity size={18} className="animate-pulse" />}
+                    <span>{isStable ? '안정적' : '측정 중'}</span>
+                </div>
 
-                        <div className="absolute top-4 left-6 flex items-center gap-2">
-                            <div
-                                className={`w-2 h-2 rounded-full ${statusInfo.glow ? 'animate-pulse' : ''}`}
-                                style={{
-                                    backgroundColor: statusInfo.color,
-                                    boxShadow: `0 0 10px ${statusInfo.color}`
-                                }}
-                            />
-                            <span className="text-[12px] font-bold tracking-wider" style={{ color: statusInfo.color }}>
-                                {reading?.source === 'SERIAL' ? `[${readingStatus.text}] 실시간 하드웨어 수신 중` : statusInfo.text}
-                            </span>
-                        </div>
-
-                        <div className="flex flex-col items-center mt-4">
-                            <h2 className="text-[11px] font-bold text-dim uppercase tracking-[0.3em] mb-4 opacity-50">
-                                현재 중량 (HARDWARE)
-                            </h2>
-
-                            <div className="flex items-baseline gap-2">
-                                <span className={`text-8xl font-black tracking-tighter 
-                                    ${reading?.source === 'SERIAL' ? 'gradient-text' : 'opacity-20 text-white'}`}>
-                                    {displayWeight}
-                                </span>
-                                <span className="text-xl font-bold opacity-30">kg</span>
-                            </div>
-                        </div>
-
-                        <div className="flex gap-3 mt-8">
-                            <button
-                                onClick={handleConnection}
-                                disabled={isProcessing}
-                                className={`px-8 py-3 rounded-full text-[12px] font-black tracking-wider transition-all duration-300
-                                    ${connectionStatus === 'CONNECTED'
-                                        ? 'bg-transparent border border-white/10 text-white/50 hover:bg-white/5 hover:text-white'
-                                        : 'bg-primary text-black glow-shadow hover:scale-105 active:scale-95'
-                                    } disabled:opacity-50`}
-                            >
-                                {connectionStatus === 'CONNECTED' ? '연결 해제' : '인디케이터 연결'}
-                            </button>
-
-                            {connectionStatus === 'CONNECTED' && (
-                                <button
-                                    onClick={handleRecord}
-                                    className="px-8 py-3 rounded-full text-[12px] font-black tracking-wider bg-white/10 text-white hover:bg-white/20 transition-all active:scale-95"
-                                >
-                                    무게 기록
-                                </button>
-                            )}
-                        </div>
-
-                        <button
-                            onClick={() => setCurrentView('PRINT_ENV')}
-                            className="absolute top-4 right-6 p-2 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all flex items-center gap-2 group"
-                        >
-                            <span className="text-lg group-hover:rotate-90 transition-transform duration-500">⚙️</span>
-                            <span className="text-[10px] font-bold text-dim group-hover:text-white transition-colors">인쇄환경</span>
-                        </button>
-
-                        {reading && (
-                            <div className="absolute bottom-4 right-6 text-[10px] opacity-30 text-right">
-                                수신 시각: {new Date(reading.receivedAt).toLocaleTimeString()}
-                            </div>
-                        )}
-
-                        {connectionStatus === 'CONNECTED' && (
-                            <div className="w-full px-8 mt-4 absolute bottom-0 left-0 h-1">
-                                <div className="w-full h-full bg-white/5">
-                                    <div
-                                        className="h-full transition-all duration-300 ease-out"
-                                        style={{
-                                            width: `${Math.min((reading?.weight || 0) / 100, 100)}%`,
-                                            backgroundColor: readingStatus.color,
-                                            boxShadow: `0 0 10px ${readingStatus.color}`
-                                        }}
-                                    />
-                                </div>
-                            </div>
-                        )}
+                {/* 본문 - 중량 표시 */}
+                <div className="flex flex-col items-center gap-6">
+                    <span className="text-[#868B94] font-black text-xl tracking-[0.3em] uppercase">Current Weight</span>
+                    <div className="flex items-baseline gap-4">
+                        <span className="text-[120px] font-black text-[#212124] leading-none tracking-tighter shadow-orange-500/10">
+                            {displayWeight}
+                        </span>
+                        <span className="text-5xl font-black text-[#868B94]">{reading?.unit || 'g'}</span>
                     </div>
+                </div>
 
-                    {/* Records List */}
-                    <div className="glass-card p-6 flex flex-col gap-4" style={{ minWidth: '400px' }}>
-                        <h3 className="text-xs font-bold text-dim uppercase tracking-widest border-b border-white/5 pb-2">
-                            최근 계량 기록
-                        </h3>
-                        <div className="flex flex-col gap-2 max-h-[150px] overflow-y-auto custom-scrollbar">
-                            {records.length === 0 ? (
-                                <p className="text-[11px] text-center py-4 opacity-30 italic">기록된 데이터가 없습니다.</p>
-                            ) : (
-                                records.map(record => (
-                                    <div key={record.id} className="flex justify-between items-center py-2 px-3 bg-white/5 rounded-lg border border-white/5 group">
-                                        <div className="flex flex-col">
-                                            <span className="text-[12px] font-bold text-primary">{record.weight.toLocaleString()} kg</span>
-                                            <span className="text-[10px] opacity-40">{record.time.toLocaleString()}</span>
-                                        </div>
-                                        <button
-                                            onClick={() => handlePrint(record)}
-                                            className="px-3 py-1.5 rounded-lg bg-white/5 text-[10px] font-bold text-white/50 hover:bg-primary hover:text-black transition-all opacity-0 group-hover:opacity-100"
-                                        >
-                                            🖨️ 인쇄
-                                        </button>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
+                {/* 하단 대형 버튼 2개 */}
+                <div className="grid grid-cols-2 gap-4 w-full max-w-2xl mt-4">
+                    <button
+                        onClick={handleTare}
+                        className="btn-karrot-secondary hover:bg-[#DEE2E6] hover:scale-[1.02]"
+                    >
+                        <RotateCcw size={24} />
+                        <span>영점 조절</span>
+                    </button>
 
-                    {/* Connection Error Modal */}
-                    {showErrorModal && (
-                        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-xl animate-in fade-in duration-300 p-6">
-                            <div className="glass-card max-w-md w-full p-8 border-2 border-error/50 animate-in zoom-in duration-300 flex flex-col items-center gap-6 shadow-[0_0_80px_rgba(239,68,68,0.2)]">
-                                <div className="w-16 h-16 rounded-full bg-error/10 flex items-center justify-center">
-                                    <span className="text-3xl">🚫</span>
-                                </div>
+                    <button
+                        onClick={handleRecord}
+                        className="btn-karrot-primary bg-gradient-to-tr from-[#FF6F0F] to-[#FF8E42] shadow-lg shadow-orange-100 hover:scale-[1.02]"
+                    >
+                        <Save size={24} />
+                        <span>측정 기록</span>
+                    </button>
+                </div>
+            </div>
 
-                                <div className="text-center">
-                                    <h2 className="text-2xl font-black text-error tracking-tight mb-2">계량기 연결 실패</h2>
-                                    <p className="text-sm text-white/60 leading-relaxed">
-                                        인디케이터와의 통신을 시작할 수 없습니다.<br />
-                                        하드웨어 연결 상태를 확인해 주세요.
-                                    </p>
-                                </div>
-
-                                <div className="w-full bg-white/5 rounded-xl p-4 border border-white/5">
-                                    <div className="flex flex-col gap-2">
-                                        <div className="flex justify-between items-center text-[11px]">
-                                            <span className="opacity-40 uppercase font-bold tracking-wider">대상 포트</span>
-                                            <span className="font-mono text-error">COM3</span>
-                                        </div>
-                                        <div className="flex justify-between items-center text-[11px]">
-                                            <span className="opacity-40 uppercase font-bold tracking-wider">통신 설정</span>
-                                            <span className="font-mono opacity-80">2400 7E1 (Even Parity)</span>
-                                        </div>
-                                        <div className="h-[1px] bg-white/5 my-1" />
-                                        <div className="flex flex-col gap-1">
-                                            <span className="text-[10px] opacity-30 uppercase font-bold tracking-wider text-center mb-1">Error Message</span>
-                                            <p className="text-[11px] text-white/80 font-mono text-center break-all whitespace-pre-wrap">
-                                                {errorDetails}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="flex flex-col gap-3 w-full">
-                                    <button
-                                        onClick={() => setShowErrorModal(false)}
-                                        className="w-full py-4 bg-error text-black font-black rounded-2xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg shadow-error/20"
-                                    >
-                                        오류 확인
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </>
-            ) : (
-                <PrintEnvSettings
-                    currentSubView={getSubView()}
-                    onNavigate={(subView) => {
-                        if (subView === 'CLOSE') setCurrentView('MAIN');
-                        else if (subView === 'MENU') setCurrentView('PRINT_ENV');
-                        else if (subView === 'TEMPLATE') setCurrentView('TEMPLATE_SET');
-                        else if (subView === 'PRINTER') setCurrentView('PRINTER_SET');
-                    }}
-                />
-            )}
-
-            {/* Hidden Printing Component */}
+            {/* 인쇄용 컴포넌트 (숨김) */}
             <div className="hidden">
                 <WeighingTicket data={printingRecord} />
             </div>

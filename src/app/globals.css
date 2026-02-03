@@ -1,64 +1,96 @@
+@import "tailwindcss";
+
 :root {
-  --primary: #00f2ff;
-  --primary-glow: rgba(0, 242, 255, 0.4);
-  --bg-dark: #0a0c10;
-  --card-bg: rgba(255, 255, 255, 0.05);
-  --border-color: rgba(255, 255, 255, 0.1);
-  --text-main: #e0e6ed;
-  --text-dim: #94a3b8;
-  --stable: #10b981;
-  --unstable: #f59e0b;
-  --error: #ef4444;
+  --primary: #FF6F0F;
+  /* 당근마켓 오렌지 */
+  --primary-hover: #E85A00;
+  --bg-main: #F8F9FA;
+  /* 눈이 편안한 웜 그레이 */
+  --bg-sidebar: #FFFFFF;
+  --card-bg: #FFFFFF;
+  --text-main: #212124;
+  /* 진한 잉크색 */
+  --text-dim: #868B94;
+  --border-color: #E9ECEF;
+
+  /* Accessibility Typography */
+  --font-size-base: 18px;
+  --font-size-large: 24px;
+  --font-size-huge: 80px;
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+@theme {
+  --color-primary-karrot: #FF6F0F;
+  --color-primary-karrot-hover: #E85A00;
+  --color-karrot-bg: #F8F9FA;
+  --color-karrot-text: #212124;
+  --color-karrot-text-dim: #868B94;
+  --color-karrot-border: #E9ECEF;
 }
 
-body {
-  background: var(--bg-dark);
-  color: var(--text-main);
-  font-family: 'Inter', -apple-system, sans-serif;
-  overflow-x: hidden;
-  min-height: 100vh;
+@layer base {
+  body {
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-size: var(--font-size-base);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
 }
 
-/* Glassmorphism Card */
-.glass-card {
-  background: var(--card-bg);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--border-color);
-  border-radius: 1.5rem;
-  padding: 2rem;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-  transition: transform 0.3s ease, border-color 0.3s ease;
+@layer components {
+
+  /* Karrot Style Card */
+  .karrot-card {
+    @apply bg-white rounded-[2rem] shadow-md border border-neutral-100 transition-all duration-300;
+  }
+
+  .karrot-card:hover {
+    @apply shadow-xl -translate-y-1;
+  }
+
+  /* Karrot Style Button */
+  .btn-karrot-primary {
+    @apply bg-[#FF6F0F] text-white font-bold rounded-2xl h-[56px] px-8 flex items-center justify-center gap-2 transition-all active:scale-95;
+  }
+
+  .btn-karrot-secondary {
+    @apply bg-[#E9ECEF] text-[#495057] font-bold rounded-2xl h-[56px] px-8 flex items-center justify-center gap-2 transition-all active:scale-95;
+  }
+
+  /* Navigation Item */
+  .nav-item-karrot {
+    @apply flex items-center gap-4 px-6 py-4 rounded-2xl font-bold text-[#4D5159] transition-all cursor-pointer;
+  }
+
+  .nav-item-karrot:hover {
+    @apply bg-[#F2F3F6];
+  }
+
+  .nav-item-karrot.active {
+    @apply bg-white text-[#FF6F0F] shadow-sm ring-1 ring-neutral-100;
+  }
+
+  .nav-item-karrot.active span {
+    @apply text-[#FF6F0F];
+  }
 }
 
-.glass-card:hover {
-  border-color: var(--primary);
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
 }
 
-/* Typography Gradient */
-.gradient-text {
-  background: linear-gradient(135deg, #fff 0%, var(--primary) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-/* Glow Effect */
-.glow-shadow {
-  box-shadow: 0 0 20px var(--primary-glow);
+::-webkit-scrollbar-thumb {
+  background: #DEE2E6;
+  border-radius: 10px;
 }
 
-/* Animations */
-@keyframes pulse {
-  0% { opacity: 1; }
-  50% { opacity: 0.6; }
-  100% { opacity: 1; }
-}
-
-.animate-pulse {
-  animation: pulse 2s infinite ease-in-out;
+::-webkit-scrollbar-thumb:hover {
+  background: #ADB5BD;
 }
