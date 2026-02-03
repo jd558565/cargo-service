@@ -6,7 +6,6 @@ export async function GET(req: NextRequest) {
 
     const stream = new ReadableStream({
         start(controller) {
-            console.log('[SSE] Client connected to weight stream');
             const sendPing = () => {
                 try {
                     controller.enqueue(encoder.encode(': ping\n\n'));
@@ -18,12 +17,11 @@ export async function GET(req: NextRequest) {
             const pingInterval = setInterval(sendPing, 5000);
 
             const unsubscribe = weighingManager.subscribe((reading) => {
-                console.log(`[SSE] Pushing data to client: ${reading.weight}kg (${reading.status})`);
                 const data = `data: ${JSON.stringify(reading)}\n\n`;
+                console.log(`[SSE PUSH] Sending weight: ${reading.weight}kg to client`); // 3단계: SSE 전송 로그
                 try {
                     controller.enqueue(encoder.encode(data));
                 } catch (e) {
-                    console.error('[SSE] Enqueue error:', e);
                     unsubscribe();
                     clearInterval(pingInterval);
                 }
