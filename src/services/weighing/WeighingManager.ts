@@ -9,6 +9,7 @@ export class WeighingManager {
     private connectionStatus: ConnectionStatus = 'DISCONNECTED';
 
     constructor(private source: WeighingSource) {
+        console.log('[MANAGER] Created new instance');
         this.source.onReading((data) => {
             this.processReading(data);
         });
@@ -39,8 +40,10 @@ export class WeighingManager {
 
     subscribe(callback: (reading: WeighingReading) => void) {
         this.listeners.push(callback);
+        console.log(`[MANAGER] New listener subscribed. Total listeners: ${this.listeners.length}`);
         return () => {
             this.listeners = this.listeners.filter(l => l !== callback);
+            console.log(`[MANAGER] Listener unsubscribed. Total listeners: ${this.listeners.length}`);
         };
     }
 
@@ -111,10 +114,14 @@ export class WeighingManager {
     }
 }
 
-// 하드웨어 포트 설정 (환경변수가 없으면 기본 COM3 사용)
-const COM_PORT = process.env.COM_PORT || 'COM3';
+// Next.js 개발 모드에서 싱글톤 유지 (핫 리로딩 대응)
+const globalForWeighing = global as unknown as { weighingManager: WeighingManager };
 
-console.log(`[Weighter] ★ 실제 하드웨어 모드 강제 가동 (Port: ${COM_PORT})`);
-const activeSource = new SerialWeighingSource(COM_PORT);
+if (!globalForWeighing.weighingManager) {
+    const COM_PORT = process.env.COM_PORT || 'COM3';
+    console.log(`[Weighter] ★ 실제 하드웨어 모드 초기화 (Port: ${COM_PORT}, Settings: 2400 7E1)`);
+    const activeSource = new SerialWeighingSource(COM_PORT);
+    globalForWeighing.weighingManager = new WeighingManager(activeSource);
+}
 
-export const weighingManager = new WeighingManager(activeSource);
+export const weighingManager = globalForWeighing.weighingManager;
