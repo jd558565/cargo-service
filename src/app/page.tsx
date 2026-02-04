@@ -38,7 +38,7 @@ export default function Home() {
                   src="/images/weighter_logo.png"
                   alt="Truck Body"
                   className="w-full h-full object-contain filter drop-shadow-[0_10px_20px_rgba(255,111,15,0.05)]"
-                  style={{ clipPath: 'polygon(0% 0%, 38% 0%, 38% 71%, 100% 71%, 100% 100%, 0% 100%)' }}
+                  style={{ clipPath: 'polygon(0% 0%, 41% 0%, 41% 64.5%, 100% 64.5%, 100% 100%, 0% 100%)' }}
                 />
 
                 {/* 2. 배기가스 파티클 (차량 꼬리쪽 - 우측) */}
@@ -55,7 +55,7 @@ export default function Home() {
                   src="/images/weighter_logo.png"
                   alt="Cargo Hook and Container"
                   className="w-full h-full object-contain filter drop-shadow-[0_15px_30px_rgba(255,111,15,0.05)]"
-                  style={{ clipPath: 'polygon(38% 0%, 100% 0%, 100% 71%, 38% 71%)' }}
+                  style={{ clipPath: 'polygon(41% 0%, 100% 0%, 100% 64.5%, 41% 64.5%)' }}
                 />
               </div>
             </div>
