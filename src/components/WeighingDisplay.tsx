@@ -10,6 +10,7 @@ import {
     CheckCircle2
 } from 'lucide-react';
 import { WeighingTicket } from './WeighingTicket';
+import { translations, Language } from "@/lib/translations";
 
 interface WeighingReading {
     status: 'STABLE' | 'UNSTABLE' | 'OVERLOAD' | 'ERROR';
@@ -20,7 +21,8 @@ interface WeighingReading {
     receivedAt: string | Date;
 }
 
-export default function WeighingDisplay() {
+export default function WeighingDisplay({ lang, onRecord }: { lang: Language, onRecord?: (weight: number) => void }) {
+    const t = translations[lang];
     const [reading, setReading] = useState<WeighingReading | null>(null);
     const [connectionStatus, setConnectionStatus] = useState<string>('CONNECTING');
     const [records, setRecords] = useState<{ id: number; weight: number; time: Date }[]>([]);
@@ -97,10 +99,10 @@ export default function WeighingDisplay() {
         };
     }, []);
 
-    const handleTare = async () => alert('기기의 영점을 0으로 맞췄어요. 🥕');
+    const handleTare = async () => alert(t.tareSuccess);
 
     const handleRecord = () => {
-        if (!reading) return alert('아직 데이터를 기다리고 있어요.');
+        if (!reading) return alert(t.waitingData);
         const newRecord = {
             id: Date.now(),
             weight: Math.floor(reading.weight),
@@ -110,7 +112,13 @@ export default function WeighingDisplay() {
         setRecords(updatedRecords);
         localStorage.setItem('weighing_records', JSON.stringify(updatedRecords));
         setPrintingRecord(newRecord);
-        alert('성공적으로 기록되었어요! 내역에서 확인해보세요.');
+
+        // Notify parent if callback exists
+        if (onRecord) {
+            onRecord(Math.floor(reading.weight));
+        } else {
+            alert(t.recordSuccess);
+        }
     };
 
     const displayWeight = reading ? Math.floor(reading.weight).toLocaleString() : '0';
@@ -124,7 +132,7 @@ export default function WeighingDisplay() {
                 <div className={`absolute top-8 left-8 flex items-center gap-2 px-4 py-2 rounded-full font-bold text-sm ${connectionStatus === 'CONNECTED' ? 'bg-[#F2F3F6] text-[#212124]' : 'bg-[#FFF0E6] text-[#FF6F0F]'
                     }`}>
                     {connectionStatus === 'CONNECTED' ? <Wifi size={18} /> : <WifiOff size={18} />}
-                    <span>{connectionStatus === 'CONNECTED' ? '장치 연결됨' : '연결 확인 중'}</span>
+                    <span>{connectionStatus === 'CONNECTED' ? t.deviceConnected : t.checkingConnection}</span>
                 </div>
 
                 {/* 상태 설정 및 뱃지 영역 */}
@@ -153,21 +161,21 @@ export default function WeighingDisplay() {
                         className="flex items-center gap-2 px-4 py-2 bg-white border border-[#E9ECEF] rounded-full font-bold text-sm text-[#4D5159] hover:bg-[#F2F3F6] transition-all"
                     >
                         <div className={`w-2 h-2 rounded-full ${connectionStatus === 'CONNECTED' ? 'bg-[#FF6F0F]' : 'bg-[#ADB5BD]'}`} />
-                        <span>{connectionStatus === 'CONNECTED' ? '해제하기' : '연결하기'}</span>
+                        <span>{connectionStatus === 'CONNECTED' ? t.disconnect : t.connect}</span>
                     </button>
 
                     {/* 현재 상태 배지 */}
                     <div className="flex items-center gap-2 px-4 py-2 bg-[#F2F3F6] rounded-full font-bold text-sm text-[#4D5159]">
                         {isStable ? <CheckCircle2 size={18} className="text-[#FF6F0F]" /> : <Activity size={18} className="animate-pulse" />}
-                        <span>{isStable ? '안정적' : '측정 중'}</span>
+                        <span>{isStable ? t.stable : t.measuring}</span>
                     </div>
                 </div>
 
                 {/* 본문 - 중량 표시 */}
                 <div className="flex flex-col items-center gap-6">
-                    <span className="text-[#868B94] font-black text-xl tracking-[0.2em] uppercase">실시간 무게</span>
+                    <span className="text-[#868B94] font-black text-xl tracking-[0.2em] uppercase">{t.realtimeWeight}</span>
                     <div className="flex items-baseline gap-4">
-                        <span className="text-[120px] font-black text-[#212124] leading-none tracking-tighter shadow-orange-500/10">
+                        <span className="text-7xl md:text-8xl lg:text-9xl font-black text-[#212124] leading-none tracking-tighter shadow-orange-500/10">
                             {displayWeight}
                         </span>
                         <span className="text-5xl font-black text-[#868B94]">{reading?.unit || 'g'}</span>
@@ -181,7 +189,7 @@ export default function WeighingDisplay() {
                         className="btn-karrot-secondary hover:bg-[#DEE2E6] hover:scale-[1.02]"
                     >
                         <RotateCcw size={24} />
-                        <span>영점 조절</span>
+                        <span>{t.zeroPoint}</span>
                     </button>
 
                     <button
@@ -189,7 +197,7 @@ export default function WeighingDisplay() {
                         className="btn-karrot-primary bg-gradient-to-tr from-[#FF6F0F] to-[#FF8E42] shadow-lg shadow-orange-100 hover:scale-[1.02]"
                     >
                         <Save size={24} />
-                        <span>측정 기록</span>
+                        <span>{t.recordWeight}</span>
                     </button>
                 </div>
             </div>
