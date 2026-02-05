@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import {
     RotateCcw,
     Save,
@@ -26,7 +26,13 @@ export default function WeighingDisplay({ lang, onRecord }: { lang: Language, on
     const [reading, setReading] = useState<WeighingReading | null>(null);
     const [connectionStatus, setConnectionStatus] = useState<string>('CONNECTING');
     const [records, setRecords] = useState<{ id: number; weight: number; time: Date }[]>([]);
-    const [printingRecord, setPrintingRecord] = useState<{ id: number; weight: number; time: Date } | null>(null);
+    const [printingRecord, setPrintingRecord] = useState<any | null>(null);
+    const [isDataDelayed, setIsDataDelayed] = useState(false);
+
+    // Alert Refs
+    const prevStatusRef = useRef<'STABLE' | 'UNSTABLE' | 'OVERLOAD' | 'ERROR' | null>(null);
+    const lastReceivedRef = useRef<number>(Date.now());
+    const timeoutTimerRef = useRef<NodeJS.Timeout | null>(null);
 
     // 기록 로드
     useEffect(() => {
@@ -76,11 +82,33 @@ export default function WeighingDisplay({ lang, onRecord }: { lang: Language, on
             eventSource = new EventSource('/api/weighing/stream');
 
             eventSource.onmessage = (event) => {
-                const data = JSON.parse(event.data);
+                const data: WeighingReading = JSON.parse(event.data);
                 if (data.raw?.startsWith('STATUS_CHANGE')) {
                     setConnectionStatus(data.raw.split(':')[1]);
                     return;
                 }
+
+                // Update last received time
+                lastReceivedRef.current = Date.now();
+                setIsDataDelayed(false);
+                if (timeoutTimerRef.current) clearTimeout(timeoutTimerRef.current);
+                timeoutTimerRef.current = setTimeout(() => {
+                    const alerts = JSON.parse(localStorage.getItem("weighter_alerts") || "{}");
+                    if (alerts.masterEnabled && alerts.events?.dataTimeout) {
+                        console.log("⚠️ 🔊 Data Reception Delayed Alert!");
+                    }
+                    setIsDataDelayed(true);
+                }, 5000);
+
+                // Check Stable Transition
+                if (data.status === 'STABLE' && prevStatusRef.current !== 'STABLE' && prevStatusRef.current !== null) {
+                    const alerts = JSON.parse(localStorage.getItem("weighter_alerts") || "{}");
+                    if (alerts.masterEnabled && alerts.events?.stableArrival) {
+                        console.log("✨ 🔊 Weight Stabilized Alert!");
+                    }
+                }
+                prevStatusRef.current = data.status;
+
                 setReading(data);
                 if (data.source === 'SERIAL') setConnectionStatus('CONNECTED');
             };
@@ -96,6 +124,7 @@ export default function WeighingDisplay({ lang, onRecord }: { lang: Language, on
         return () => {
             if (eventSource) eventSource.close();
             if (retryTimer) clearTimeout(retryTimer);
+            if (timeoutTimerRef.current) clearTimeout(timeoutTimerRef.current);
         };
     }, []);
 
@@ -129,10 +158,10 @@ export default function WeighingDisplay({ lang, onRecord }: { lang: Language, on
             {/* 메인 로드셀 카드 */}
             <div className="karrot-card p-12 flex flex-col items-center justify-center gap-10 relative overflow-hidden min-h-[500px]">
                 {/* 연결 상태 태그 */}
-                <div className={`absolute top-8 left-8 flex items-center gap-2 px-4 py-2 rounded-full font-bold text-sm ${connectionStatus === 'CONNECTED' ? 'bg-[#F2F3F6] text-[#212124]' : 'bg-[#FFF0E6] text-[#FF6F0F]'
+                <div className={`absolute top-8 left-8 flex items-center gap-2 px-4 py-2 rounded-full font-bold text-sm ${(connectionStatus === 'CONNECTED' && !isDataDelayed) ? 'bg-[#F2F3F6] text-[#212124]' : 'bg-[#FFF0E6] text-[#FF6F0F]'
                     }`}>
-                    {connectionStatus === 'CONNECTED' ? <Wifi size={18} /> : <WifiOff size={18} />}
-                    <span>{connectionStatus === 'CONNECTED' ? t.deviceConnected : t.checkingConnection}</span>
+                    {(connectionStatus === 'CONNECTED' && !isDataDelayed) ? <Wifi size={18} /> : <WifiOff size={18} />}
+                    <span>{(connectionStatus === 'CONNECTED' && !isDataDelayed) ? t.deviceConnected : isDataDelayed ? "수신 지연 발생" : t.checkingConnection}</span>
                 </div>
 
                 {/* 상태 설정 및 뱃지 영역 */}

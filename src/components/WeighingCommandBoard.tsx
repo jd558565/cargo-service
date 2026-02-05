@@ -3,17 +3,22 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Search, Save, Truck, Package, Building2, FileText, Calculator, X, Printer, Keyboard } from "lucide-react";
 import { Language, translations } from "@/lib/translations";
+import Receipt from "./Receipt";
 
 interface WeighingRecord {
+    id: number;
     vehicleNumber: string;
-    grossWeight?: number;
-    tareWeight?: number;
-    netWeight?: number;
+    gross: number;
+    tare: number;
+    net: number;
     itemName: string;
     customerName: string;
     remarks: string;
     timestamp: string;
-    step: 1 | 2;
+    firstWeightTimestamp?: string | null;
+    modified?: boolean;
+    editHistory?: any[];
+    cctvSnapshot?: string;
 }
 
 interface WeighingCommandBoardProps {
@@ -38,6 +43,7 @@ export default function WeighingCommandBoard({ lang, currentWeight, onRecordFini
     const [activeModal, setActiveModal] = useState<'none' | 'printPrompt' | 'manualInput'>('none');
     const [manualWeightInput, setManualWeightInput] = useState("");
     const [isManualFlow, setIsManualFlow] = useState(false);
+    const [printingRecord, setPrintingRecord] = useState<WeighingRecord | null>(null);
 
     // 필드 초기화 함수
     const resetFields = useCallback(() => {
@@ -58,7 +64,14 @@ export default function WeighingCommandBoard({ lang, currentWeight, onRecordFini
         if (!vehicleNo || firstWeight === null) return;
 
         const net = Math.abs(targetSecondWeight - firstWeight);
-        const completedRecord = {
+        const settings = JSON.parse(localStorage.getItem("weighter_settings") || "{}");
+        let cctvSnapshot = undefined;
+        if (settings.cctvEnabled) {
+            // Mock snapshot base64 (tiny blue square for demo)
+            cctvSnapshot = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+        }
+
+        const completedRecord: WeighingRecord = {
             id: Date.now(),
             vehicleNumber: vehicleNo,
             gross: Math.max(targetSecondWeight, firstWeight),
@@ -68,7 +81,8 @@ export default function WeighingCommandBoard({ lang, currentWeight, onRecordFini
             customerName,
             remarks,
             firstWeightTimestamp: firstWeightTime,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            cctvSnapshot
         };
 
         const history = JSON.parse(localStorage.getItem("weighing_records_extended") || "[]");
@@ -80,13 +94,17 @@ export default function WeighingCommandBoard({ lang, currentWeight, onRecordFini
         localStorage.setItem("weighter_pending_records", JSON.stringify(pending));
 
         if (shouldPrint) {
-            // 인쇄 로직 (브라우저 인쇄창 호출)
-            console.log("Printing ticket for:", completedRecord);
-            window.print();
+            setPrintingRecord(completedRecord);
+            setTimeout(() => {
+                window.print();
+                setPrintingRecord(null);
+                onRecordFinish(completedRecord);
+            }, 100);
+        } else {
+            onRecordFinish();
         }
 
         resetFields();
-        onRecordFinish(shouldPrint ? completedRecord : undefined);
     }, [vehicleNo, firstWeight, firstWeightTime, itemName, customerName, remarks, resetFields, onRecordFinish]);
 
     // 저장 버튼 핸들러 (메인 '측정기록' -> '저장' 버튼)
@@ -113,6 +131,12 @@ export default function WeighingCommandBoard({ lang, currentWeight, onRecordFini
             // 2차 계량 종료 (자동/실시간 중량 기반) -> 출력 여부 확인창 띄움
             setIsManualFlow(false);
             setActiveModal('printPrompt');
+
+            // Trigger Print Reminder Alert
+            const alerts = JSON.parse(localStorage.getItem("weighter_alerts") || "{}");
+            if (alerts.masterEnabled && alerts.events?.printReminder) {
+                console.log("🔊 🖨️ Print Reminder Alert triggered!");
+            }
         }
     }, [vehicleNo, weighingStep, currentWeight, itemName, customerName, remarks, t, resetFields]);
 
@@ -370,6 +394,14 @@ export default function WeighingCommandBoard({ lang, currentWeight, onRecordFini
                     </div>
                 </div>
             )}
+            {/* Hidden Receipt for Printing */}
+            <div className="hidden">
+                {printingRecord && (
+                    <div id="printable-receipt">
+                        <Receipt record={printingRecord} lang={lang} />
+                    </div>
+                )}
+            </div>
         </div>
     );
 }
