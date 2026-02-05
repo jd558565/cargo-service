@@ -17,6 +17,7 @@ import TermsModal from "@/components/TermsModal";
 import LanguageSelector from "@/components/LanguageSelector";
 import WeighingCommandBoard from "@/components/WeighingCommandBoard";
 import { WeighingTicket } from "@/components/WeighingTicket";
+import WeighingHistoryModal from "@/components/WeighingHistoryModal";
 import { translations, Language } from "@/lib/translations";
 
 export default function Home() {
@@ -24,6 +25,7 @@ export default function Home() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isTermsOpen, setIsTermsOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [lang, setLang] = useState<Language>('ko');
   const [capturedWeight, setCapturedWeight] = useState<number>(0);
   const [recordTimestamp, setRecordTimestamp] = useState<number>(0);
@@ -155,7 +157,10 @@ export default function Home() {
             <LayoutDashboard className="w-6 h-6" />
             {!isSidebarCollapsed && <span>{t.dashboard}</span>}
           </div>
-          <div className={`nav-item-karrot ${isSidebarCollapsed ? 'justify-center px-0' : ''}`}>
+          <div
+            className={`nav-item-karrot cursor-pointer ${isSidebarCollapsed ? 'justify-center px-0' : ''}`}
+            onClick={() => setIsHistoryOpen(true)}
+          >
             <History className="w-6 h-6" />
             {!isSidebarCollapsed && <span>{t.history}</span>}
           </div>
@@ -299,6 +304,11 @@ export default function Home() {
       <TermsModal
         isOpen={isTermsOpen}
         onClose={() => setIsTermsOpen(false)}
+        lang={lang}
+      />
+      <WeighingHistoryModal
+        isOpen={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
         lang={lang}
       />
 

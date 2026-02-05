@@ -31,6 +31,7 @@ export default function WeighingCommandBoard({ lang, currentWeight, onRecordFini
     const [remarks, setRemarks] = useState("");
 
     const [firstWeight, setFirstWeight] = useState<number | null>(null);
+    const [firstWeightTime, setFirstWeightTime] = useState<string | null>(null);
     const [weighingStep, setWeighingStep] = useState<1 | 2>(1);
 
     // 모달 및 수동 입력 상태
@@ -45,6 +46,7 @@ export default function WeighingCommandBoard({ lang, currentWeight, onRecordFini
         setCustomerName("");
         setRemarks("");
         setFirstWeight(null);
+        setFirstWeightTime(null);
         setWeighingStep(1);
         setActiveModal('none');
         setManualWeightInput("");
@@ -65,6 +67,7 @@ export default function WeighingCommandBoard({ lang, currentWeight, onRecordFini
             itemName,
             customerName,
             remarks,
+            firstWeightTimestamp: firstWeightTime,
             timestamp: new Date().toISOString()
         };
 
@@ -84,7 +87,7 @@ export default function WeighingCommandBoard({ lang, currentWeight, onRecordFini
 
         resetFields();
         onRecordFinish(shouldPrint ? completedRecord : undefined);
-    }, [vehicleNo, firstWeight, itemName, customerName, remarks, resetFields, onRecordFinish]);
+    }, [vehicleNo, firstWeight, firstWeightTime, itemName, customerName, remarks, resetFields, onRecordFinish]);
 
     // 저장 버튼 핸들러 (메인 '측정기록' -> '저장' 버튼)
     const handleSave = useCallback(() => {
@@ -111,7 +114,7 @@ export default function WeighingCommandBoard({ lang, currentWeight, onRecordFini
             setIsManualFlow(false);
             setActiveModal('printPrompt');
         }
-    }, [vehicleNo, weighingStep, currentWeight, t, resetFields]);
+    }, [vehicleNo, weighingStep, currentWeight, itemName, customerName, remarks, t, resetFields]);
 
     // 차량 조회
     const handleSearch = useCallback(() => {
@@ -120,12 +123,14 @@ export default function WeighingCommandBoard({ lang, currentWeight, onRecordFini
         if (history[vehicleNo]) {
             const record = history[vehicleNo];
             setFirstWeight(record.weight);
+            setFirstWeightTime(record.timestamp);
             setItemName(record.itemName);
             setCustomerName(record.customerName);
             setRemarks(record.remarks);
             setWeighingStep(2);
         } else {
             setFirstWeight(null);
+            setFirstWeightTime(null);
             setWeighingStep(1);
             alert(t.noVehicleData);
         }
@@ -222,13 +227,39 @@ export default function WeighingCommandBoard({ lang, currentWeight, onRecordFini
                 {/* Weight Calculation Result Area */}
                 <div className="bg-[#F8F9FA] rounded-[2rem] p-8 flex flex-col justify-between border border-[#E9ECEF] min-h-[360px]">
                     <div className="space-y-6">
-                        <div className="flex justify-between items-center text-[#868B94]">
-                            <span className="font-bold text-sm">{weighingStep === 1 ? t.firstWeighing : t.grossWeight}</span>
-                            <span className="font-black text-xl text-[#212124]">{weighingStep === 1 ? currentWeight.toLocaleString() : (firstWeight || 0).toLocaleString()} kg</span>
+                        <div className="flex flex-col gap-1">
+                            <div className="flex justify-between items-center text-[#868B94]">
+                                <span className="font-bold text-sm">{t.firstWeighing}</span>
+                                <span className="font-black text-xl text-[#212124]">
+                                    {weighingStep === 1 ? currentWeight.toLocaleString() : (firstWeight || 0).toLocaleString()} kg
+                                </span>
+                            </div>
+                            {weighingStep === 2 && firstWeightTime && (
+                                <div className="text-[10px] text-[#FF6F0F] font-bold text-right -mt-1 opacity-80">
+                                    {t.weighingTime}: {new Date(firstWeightTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
+                                </div>
+                            )}
                         </div>
+
+                        <div className="flex flex-col gap-1">
+                            <div className="flex justify-between items-center text-[#868B94]">
+                                <span className="font-bold text-sm">{t.secondWeight}</span>
+                                <span className="font-black text-xl text-[#212124]">
+                                    {weighingStep === 2 ? currentWeight.toLocaleString() : "0"} kg
+                                </span>
+                            </div>
+                            {weighingStep === 2 && (
+                                <div className="text-[10px] text-[#1976D2] font-bold text-right -mt-1 opacity-80">
+                                    {t.weighingTime}: {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
+                                </div>
+                            )}
+                        </div>
+
                         <div className="flex justify-between items-center text-[#868B94]">
-                            <span className="font-bold text-sm">{weighingStep === 2 ? t.secondWeighing : t.tareWeight}</span>
-                            <span className="font-black text-xl text-[#212124]">{weighingStep === 2 ? currentWeight.toLocaleString() : "0"} kg</span>
+                            <span className="font-bold text-sm">{t.tareWeight}</span>
+                            <span className="font-black text-xl text-[#212124]">
+                                {weighingStep === 2 ? Math.min(currentWeight, firstWeight || 0).toLocaleString() : currentWeight.toLocaleString()} kg
+                            </span>
                         </div>
 
                         <div className="pt-6 border-t border-[#E9ECEF] space-y-2">
