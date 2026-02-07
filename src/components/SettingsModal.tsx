@@ -7,6 +7,7 @@ interface SettingsModalProps {
     onClose: () => void;
     onOpenTerms: () => void;
     lang: Language;
+    initialTab?: SettingsTab;
 }
 
 type SettingsTab = 'SETTINGS' | 'SUPPORT' | 'ADMIN';
@@ -54,9 +55,9 @@ interface AlertSettings {
     screenFlash: boolean;
 }
 
-type SettingsView = 'MENU' | 'ALERTS';
+type SettingsView = 'MENU' | 'ALERTS' | 'CARD_SETTINGS';
 
-export default function SettingsModal({ isOpen, onClose, onOpenTerms, lang }: SettingsModalProps) {
+export default function SettingsModal({ isOpen, onClose, onOpenTerms, lang, initialTab }: SettingsModalProps) {
     const [activeTab, setActiveTab] = useState<SettingsTab>('SETTINGS');
     const [isAdmin, setIsAdmin] = useState(false);
     const [adminPassword, setAdminPassword] = useState("");
@@ -85,6 +86,12 @@ export default function SettingsModal({ isOpen, onClose, onOpenTerms, lang }: Se
         screenFlash: true
     });
 
+    const [dashboardCards, setDashboardCards] = useState({
+        stats: false,
+        pending: false,
+        recent: false
+    });
+
     // Support States
     const [supportView, setSupportView] = useState<SupportView>('MAIN');
     const [notices, setNotices] = useState<Notice[]>([]);
@@ -111,6 +118,16 @@ export default function SettingsModal({ isOpen, onClose, onOpenTerms, lang }: Se
             const savedAlerts = JSON.parse(localStorage.getItem("weighter_alerts") || "null");
             if (savedAlerts) {
                 setAlertSettings(savedAlerts);
+            }
+
+            // Load Card Settings
+            const savedCards = JSON.parse(localStorage.getItem("weighter_dashboard_cards") || "null");
+            if (savedCards) {
+                setDashboardCards(savedCards);
+            }
+
+            if (initialTab) {
+                setActiveTab(initialTab);
             }
 
             // Load Support Data
@@ -157,6 +174,16 @@ export default function SettingsModal({ isOpen, onClose, onOpenTerms, lang }: Se
         setAlertSettings(prev => {
             const next = typeof updates === 'function' ? updates(prev) : { ...prev, ...updates };
             localStorage.setItem("weighter_alerts", JSON.stringify(next));
+            return next;
+        });
+    };
+
+    const updateCardSettings = (updates: Partial<typeof dashboardCards>) => {
+        setDashboardCards(prev => {
+            const next = { ...prev, ...updates };
+            localStorage.setItem("weighter_dashboard_cards", JSON.stringify(next));
+            // Trigger storage event for other components
+            window.dispatchEvent(new Event('storage'));
             return next;
         });
     };
@@ -351,6 +378,18 @@ export default function SettingsModal({ isOpen, onClose, onOpenTerms, lang }: Se
                                                 </div>
                                                 <ChevronRight className="w-4 h-4 text-[#ADB5BD]" />
                                             </button>
+                                            <button
+                                                onClick={() => setSettingsView('CARD_SETTINGS')}
+                                                className="w-full flex items-center justify-between p-4 rounded-2xl hover:bg-[#F8F9FA] transition-all group text-left"
+                                            >
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-10 h-10 bg-orange-50 text-[#FF6F0F] rounded-xl flex items-center justify-center">
+                                                        <Settings className="w-5 h-5" />
+                                                    </div>
+                                                    <span className="font-bold text-[#4D5159]">{t.cardSettings}</span>
+                                                </div>
+                                                <ChevronRight className="w-4 h-4 text-[#ADB5BD]" />
+                                            </button>
                                         </div>
                                     </div>
 
@@ -415,6 +454,39 @@ export default function SettingsModal({ isOpen, onClose, onOpenTerms, lang }: Se
                                         </div>
                                     </div>
                                 </>
+                            ) : settingsView === 'CARD_SETTINGS' ? (
+                                <div className="px-2 space-y-6 animate-in slide-in-from-right-4 pb-8">
+                                    <button onClick={() => setSettingsView('MENU')} className="text-sm font-bold text-[#868B94] flex items-center gap-1">
+                                        <ChevronRight className="w-4 h-4 rotate-180" /> 일반 설정
+                                    </button>
+
+                                    <div className="space-y-4">
+                                        <h3 className="text-[10px] font-black text-[#ADB5BD] uppercase tracking-widest pl-1">대시보드 / 계량 화면 카드</h3>
+                                        {[
+                                            { key: 'stats', label: t.showStatsCard, desc: '누적 중량 및 차트 통계' },
+                                            { key: 'pending', label: t.showPendingCard, desc: '2차 계량 대기 중인 차량 리스트' },
+                                            { key: 'recent', label: t.showRecentCard, desc: '최근 완료된 계량 이력 5건' }
+                                        ].map(card => (
+                                            <div key={card.key} className="flex items-center justify-between p-4 rounded-2xl bg-white border border-[#F1F3F5] hover:border-[#E9ECEF] transition-all">
+                                                <div>
+                                                    <p className="font-bold text-sm text-[#212124]">{card.label}</p>
+                                                    <p className="text-[10px] text-[#ADB5BD] font-medium">{card.desc}</p>
+                                                </div>
+                                                <div
+                                                    onClick={() => updateCardSettings({ [card.key]: !dashboardCards[card.key as keyof typeof dashboardCards] })}
+                                                    className={`w-10 h-5 rounded-full p-0.5 cursor-pointer transition-colors ${dashboardCards[card.key as keyof typeof dashboardCards] ? 'bg-[#FF6F0F]' : 'bg-gray-200'}`}
+                                                >
+                                                    <div className={`w-4 h-4 bg-white rounded-full transition-transform ${dashboardCards[card.key as keyof typeof dashboardCards] ? 'translate-x-5' : 'translate-x-0'}`} />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
+                                        <p className="text-[10px] font-bold text-blue-600 leading-relaxed">
+                                            ※ 실시간 계량 화면과 리포트 화면의 구성을 원하는 대로 조정할 수 있습니다.
+                                        </p>
+                                    </div>
+                                </div>
                             ) : (
                                 <div className="px-2 space-y-6 animate-in slide-in-from-right-4 pb-8">
                                     <div className="flex items-center justify-between">

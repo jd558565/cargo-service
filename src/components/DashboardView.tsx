@@ -23,6 +23,17 @@ interface DashboardViewProps {
 
 export default function DashboardView({ lang }: DashboardViewProps) {
     const t = translations[lang];
+    const [showStats, setShowStats] = React.useState(false);
+
+    React.useEffect(() => {
+        const loadSettings = () => {
+            const savedCards = JSON.parse(localStorage.getItem("weighter_dashboard_cards") || "{\"stats\":false}");
+            setShowStats(savedCards.stats);
+        };
+        loadSettings();
+        window.addEventListener('storage', loadSettings);
+        return () => window.removeEventListener('storage', loadSettings);
+    }, []);
 
     // LocalStorage에서 데이터 로드 (실제로는 API 연동 필요)
     const records = useMemo(() => {
@@ -123,43 +134,50 @@ export default function DashboardView({ lang }: DashboardViewProps) {
                 </div>
             </div>
 
-            {/* 차트 영역 */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="karrot-card p-8">
-                    <h3 className="text-xl font-black text-[#212124] mb-6">최근 7일 물동량 (kg)</h3>
-                    <div className="h-[300px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={stats}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#868B94', fontSize: 12 }} dy={10} />
-                                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#868B94', fontSize: 12 }} />
-                                <Tooltip
-                                    cursor={{ fill: '#F8F9FA' }}
-                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                                />
-                                <Bar dataKey="weight" fill="#FF6F0F" radius={[4, 4, 0, 0]} barSize={40} />
-                            </BarChart>
-                        </ResponsiveContainer>
+            {/* 차트 영역 - 설정에 따라 노출 */}
+            {showStats ? (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-20">
+                    <div className="karrot-card p-8">
+                        <h3 className="text-xl font-black text-[#212124] mb-6">최근 7일 물동량 (kg)</h3>
+                        <div className="h-[300px] w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={stats}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#868B94', fontSize: 12 }} dy={10} />
+                                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#868B94', fontSize: 12 }} />
+                                    <Tooltip
+                                        cursor={{ fill: '#F8F9FA' }}
+                                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                                    />
+                                    <Bar dataKey="weight" fill="#FF6F0F" radius={[4, 4, 0, 0]} barSize={40} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
                     </div>
-                </div>
 
-                <div className="karrot-card p-8">
-                    <h3 className="text-xl font-black text-[#212124] mb-6">주간 추이</h3>
-                    <div className="h-[300px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={stats}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#868B94', fontSize: 12 }} dy={10} />
-                                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#868B94', fontSize: 12 }} />
-                                <Tooltip
-                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                                />
-                                <Line type="monotone" dataKey="weight" stroke="#1976D2" strokeWidth={3} dot={{ r: 4, fill: '#1976D2', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
-                            </LineChart>
-                        </ResponsiveContainer>
+                    <div className="karrot-card p-8">
+                        <h3 className="text-xl font-black text-[#212124] mb-6">주간 추이</h3>
+                        <div className="h-[300px] w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <LineChart data={stats}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#868B94', fontSize: 12 }} dy={10} />
+                                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#868B94', fontSize: 12 }} />
+                                    <Tooltip
+                                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                                    />
+                                    <Line type="monotone" dataKey="weight" stroke="#1976D2" strokeWidth={3} dot={{ r: 4, fill: '#1976D2', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
+                                </LineChart>
+                            </ResponsiveContainer>
+                        </div>
                     </div>
                 </div>
-            </div>
+            ) : (
+                <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border border-dashed border-[#E9ECEF]">
+                    <TrendingUp className="w-12 h-12 text-[#ADB5BD] mb-4 opacity-20" />
+                    <p className="text-[#868B94] font-bold">환경설정에서 통계 카드 노출을 켜주세요.</p>
+                </div>
+            )}
         </div>
     );
 }

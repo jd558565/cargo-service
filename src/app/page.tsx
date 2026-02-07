@@ -1,15 +1,26 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
+  Truck,
+  Package,
+  HelpCircle,
+  Edit2,
+  Trash2,
+  Clock,
+  MapPin,
+  Calculator,
   History,
   Settings,
-  Package,
   LayoutDashboard,
   ChevronLeft,
   ChevronRight,
   User,
-  Scale
+  Scale,
+  LogOut,
+  Menu,
+  X,
+  Plus
 } from "lucide-react";
 import SettingsModal from "@/components/SettingsModal";
 import TermsModal from "@/components/TermsModal";
@@ -18,24 +29,40 @@ import WeighingHistoryModal from "@/components/WeighingHistoryModal";
 import DashboardView from "@/components/DashboardView";
 import WeighingView from "@/components/WeighingView";
 import { translations, Language } from "@/lib/translations";
+import { isAuthenticated, logout } from "@/lib/auth";
 
 type ViewMode = 'dashboard' | 'weighing';
 
 export default function Home() {
-  const [showSplash, setShowSplash] = useState(true);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isTermsOpen, setIsTermsOpen] = useState(false);
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [settingsInitialTab, setSettingsInitialTab] = useState<'SETTINGS' | 'SUPPORT' | 'ADMIN' | undefined>(undefined);
   const [currentView, setCurrentView] = useState<ViewMode>('weighing');
   const [lang, setLang] = useState<Language>('ko');
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
 
-  // 언어 로드
+  // 언어 로드 및 인증 체크
   useEffect(() => {
+    // Auth Guard
+    if (!isAuthenticated()) {
+      window.location.href = '/login';
+      return;
+    }
+    setIsAuthChecking(false);
+
     const savedLang = localStorage.getItem('weighter_lang');
     if (savedLang && ['ko', 'en', 'zh', 'ja'].includes(savedLang)) {
       setLang(savedLang as Language);
     }
+
+    const handleOpenSupport = () => {
+      setSettingsInitialTab('SUPPORT');
+      setIsSettingsOpen(true);
+    };
+    window.addEventListener('open-support-modal', handleOpenSupport);
+    return () => window.removeEventListener('open-support-modal', handleOpenSupport);
   }, []);
 
   const handleLanguageChange = (newLang: Language) => {
@@ -45,55 +72,10 @@ export default function Home() {
 
   const t = translations[lang];
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowSplash(false);
-    }, 3500);
-    return () => clearTimeout(timer);
-  }, []);
+  if (isAuthChecking) return <div className="min-h-screen bg-white" />;
 
   return (
     <div className="relative min-h-screen bg-[#F8F9FA] flex overflow-hidden">
-      {/* 0. 스플래시 스크린 */}
-      {showSplash && (
-        <div className="fixed inset-0 z-[100] bg-white flex flex-col items-center justify-center animate-out fade-out duration-1000 fill-mode-forwards">
-          <div className="relative flex flex-col items-center gap-2 animate-in zoom-in-95 duration-700">
-            {/* 로고 애니메이션 컨테이너 */}
-            <div className="relative w-[448px] h-[448px] flex items-center justify-center transition-transform hover:scale-105">
-              {/* 1. 차량 본체 (운전석 + 섀시/바퀴) - 미세 진동 */}
-              <div className="absolute inset-0 animate-truck">
-                <img
-                  src="/images/weighter_logo.png"
-                  alt="Truck Body"
-                  className="w-full h-full object-contain filter drop-shadow-[0_10px_20px_rgba(255,111,15,0.05)]"
-                  style={{ clipPath: 'polygon(0% 0%, 41% 0%, 41% 64.5%, 100% 64.5%, 100% 100%, 0% 100%)' }}
-                />
-              </div>
-
-              {/* 3. 화물(컨테이너) + 고리 - 함께 동기화 모션 */}
-              <div className="absolute inset-0 animate-cargo">
-                <img
-                  src="/images/weighter_logo.png"
-                  alt="Cargo Hook and Container"
-                  className="w-full h-full object-contain filter drop-shadow-[0_15px_30px_rgba(255,111,15,0.05)]"
-                  style={{ clipPath: 'polygon(41% 0%, 100% 0%, 100% 64.5%, 41% 64.5%)' }}
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-col items-center">
-              <h1 className="text-5xl font-black text-[#FF6F0F] tracking-wider mb-2">
-                Weighter
-              </h1>
-              <p className="text-xl text-[#868B94] font-bold tracking-tight">{t.splashSubtitle}</p>
-            </div>
-          </div>
-          {/* 하단 로딩 바 스타일 */}
-          <div className="absolute bottom-20 w-48 h-1.5 bg-[#E9ECEF] rounded-full overflow-hidden">
-            <div className="h-full bg-[#FF6F0F] animate-[loading-fill_3.5s_linear_forwards]" />
-          </div>
-        </div>
-      )}
 
       {/* 1. 좌측 고정 사이드바 */}
       <aside
@@ -155,7 +137,7 @@ export default function Home() {
 
           <div
             className={`nav-item-karrot cursor-pointer ${isSidebarCollapsed ? 'justify-center px-0' : ''}`}
-            onClick={() => setIsHistoryOpen(true)}
+            onClick={() => setIsHistoryModalOpen(true)}
           >
             <History className="w-6 h-6" />
             {!isSidebarCollapsed && <span>{t.history}</span>}
@@ -166,13 +148,20 @@ export default function Home() {
           </div>
         </nav>
 
-        <div className="p-4 border-t border-[#E9ECEF]">
+        <div className="p-4 border-t border-[#E9ECEF] space-y-2">
           <div
             className={`nav-item-karrot cursor-pointer ${isSidebarCollapsed ? 'justify-center px-0' : ''}`}
             onClick={() => setIsSettingsOpen(true)}
           >
             <Settings className="w-6 h-6" />
             {!isSidebarCollapsed && <span>{t.settings}</span>}
+          </div>
+          <div
+            className={`nav-item-karrot cursor-pointer text-orange-500 hover:bg-orange-50 ${isSidebarCollapsed ? 'justify-center px-0' : ''}`}
+            onClick={() => logout()}
+          >
+            <LogOut className="w-6 h-6" />
+            {!isSidebarCollapsed && <span>{t.logout}</span>}
           </div>
         </div>
       </aside>
@@ -216,8 +205,8 @@ export default function Home() {
         lang={lang}
       />
       <WeighingHistoryModal
-        isOpen={isHistoryOpen}
-        onClose={() => setIsHistoryOpen(false)}
+        isOpen={isHistoryModalOpen}
+        onClose={() => setIsHistoryModalOpen(false)}
         lang={lang}
       />
     </div>

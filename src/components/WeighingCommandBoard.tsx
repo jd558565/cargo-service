@@ -125,6 +125,9 @@ export default function WeighingCommandBoard({ lang, currentWeight, onRecordFini
             };
             localStorage.setItem("weighter_pending_records", JSON.stringify(pending));
 
+            // Trigger storage event for local updates
+            window.dispatchEvent(new Event('storage'));
+
             alert(t.firstWeighingComplete);
             resetFields(); // 1차 계량 후 바로 공란으로 비움
         } else {

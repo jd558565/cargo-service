@@ -101,11 +101,11 @@
   }
 
   25% {
-    transform: translateY(-2px) rotate(-0.5deg);
+    transform: translateY(-1px) rotate(-0.2deg);
   }
 
   75% {
-    transform: translateY(-1px) rotate(0.5deg);
+    transform: translateY(-0.5px) rotate(0.2deg);
   }
 }
 
@@ -142,6 +142,33 @@
   }
 }
 
+@keyframes shake {
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
+    transform: translateX(-4px);
+  }
+
+  20%,
+  40%,
+  60%,
+  80% {
+    transform: translateX(4px);
+  }
+}
+
+.animate-shake {
+  animation: shake 0.4s cubic-bezier(.36, .07, .19, .97) both;
+}
+
 .animate-truck {
   animation: truck-rattle 0.2s infinite ease-in-out;
 }
@@ -169,4 +196,33 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background: #ADB5BD;
+}
+
+/* Floating Action Button (FAB) */
+.fab-help {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  width: 60px;
+  height: 60px;
+  background-color: #FF6F0F;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 20px rgba(255, 111, 15, 0.3);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  z-index: 50;
+  border: none;
+}
+
+.fab-help:hover {
+  transform: scale(1.1) rotate(5deg);
+  box-shadow: 0 8px 30px rgba(255, 111, 15, 0.4);
+}
+
+.fab-help:active {
+  transform: scale(0.9);
 }
